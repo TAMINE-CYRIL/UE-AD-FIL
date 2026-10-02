@@ -10,9 +10,62 @@ HOST = '0.0.0.0'
 with open('{}/databases/times.json'.format("."), "r") as jsf:
    schedule = json.load(jsf)["schedule"]
 
+def write(schedule):
+    """Fonction d'écriture de fichier."""
+    with open('{}/databases/times.json'.format("."), 'w') as f:
+        full = {}
+        full['schedule']=schedule
+        json.dump(full, f)
+
+
 @app.route("/", methods=['GET'])
 def home():
+   """ Renvoie la page d'accueil de l'API schedule. """
    return "<h1 style='color:blue'>Welcome to the Showtime service!</h1>"
+
+@app.route("/schedule", methods=['GET'])
+
+def get_schedule():
+   """Renvoie l'intégralité des plannings, renvoie 200"""
+   return make_response(jsonify(schedule), 200)
+
+@app.route("/schedule/<date>", methods=['GET'])
+def get_schedule_bydate(date):
+   """Renvoie un planning basé sur sa date. Renvoie 404 si la date n'est pas trouvé, sinon 200"""
+   json = ""
+   for showtime in schedule:
+      if str(showtime["date"]) == str(date):
+         json = showtime
+   if not json:
+      res = make_response(jsonify({"error" : "Date not found."}), 404)
+   else: 
+      res = make_response(jsonify(json), 200)
+   return res
+
+@app.route("/schedule/<date>", methods=["POST"])
+def create_schedule(date):
+   """Crée un planning, renvoie 409 si la date existe déjà, sinon 200"""
+   req = request.get_json()
+   for showtime in schedule:
+      if showtime["date"] == str(date):
+         return make_response(jsonify({"error" : "This date already exists."}), 409)
+
+   schedule.append(req)
+   write(schedule)
+   return make_response(jsonify({"message": "Schedule added."}), 200)
+
+@app.route("/schedule/<date>", methods=['DELETE'])
+def delete_schedule(date):
+   """Supprime un planning basé sur sa date, renvoie 200 si le planning est supprimé.
+   Sinon renvoie 404 si le planning n'est pas trouvé. 
+   """
+   for showtime in schedule:
+      if str(showtime["date"]) == str(date):
+         schedule.remove(showtime)
+         write(schedule)
+         return make_response(jsonify({"message" : "Schedule deleted."}), 200)
+
+   return make_response(jsonify({"error": "Schedule not found."}), 404)
 
 if __name__ == "__main__":
    print("Server running in port %s"%(PORT))
