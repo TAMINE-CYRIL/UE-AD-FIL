@@ -1,7 +1,7 @@
 openapi: 3.0.3
 info:
   title: Movie Service API
-  description: API for browsing, adding, and rating movies.
+  description: API for browsing, adding, rating, and deleting movies.
   version: "1.0.0"
   contact:
     name: Helene Coullon
@@ -13,7 +13,7 @@ servers:
 
 tags:
 - name: admin
-  description: Secured Admin-only calls
+  description: Movie management operations (authentication is not implemented).
 - name: dev
   description: Operations available to regular developers
 
@@ -33,7 +33,7 @@ paths:
                 type: string
                 example: "<h1 style='color:blue'>Welcome to the Movie service!</h1>"
 
-  /json:
+  /movies:
     get:
       tags:
         - dev
@@ -63,7 +63,7 @@ paths:
             application/json:
               schema:
                 $ref: "#/components/schemas/Movie"
-        "500":
+        "404":
           description: Movie ID not found
           content:
             application/json:
@@ -74,7 +74,7 @@ paths:
       tags:
         - admin
       summary: Add a new movie
-      description: Adds a movie with the given ID, if it doesn't already exist.
+      description: The URL ID is used to detect duplicates. The movie is stored from the JSON request body.
       parameters:
         - $ref: "#/components/parameters/MovieId"
       requestBody:
@@ -93,9 +93,41 @@ paths:
                 properties:
                   message:
                     type: string
-                    example: movie added
-        "500":
+                    example: "Movie added."
+        "400":
+          description: Malformed JSON request body
+          content:
+            text/html:
+              schema:
+                type: string
+        "415":
+          description: Request body must use a JSON content type
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+        "409":
           description: Movie ID already exists
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+
+    delete:
+      tags:
+        - admin
+      summary: Delete a movie by its ID
+      parameters:
+        - $ref: "#/components/parameters/MovieId"
+      responses:
+        "200":
+          description: Deleted movie
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Movie"
+        "404":
+          description: Movie ID not found
           content:
             application/json:
               schema:
@@ -105,7 +137,7 @@ paths:
     get:
       tags:
         - dev
-      summary: Retrieve a movie by its title
+      summary: Retrieve the first movie with an exact matching title
       parameters:
         - name: title
           in: query
@@ -113,6 +145,8 @@ paths:
           description: Exact title of the movie to search for
           schema:
             type: string
+            minLength: 1
+            pattern: '\S'
       responses:
         "200":
           description: Movie found
@@ -120,7 +154,13 @@ paths:
             application/json:
               schema:
                 $ref: "#/components/schemas/Movie"
-        "500":
+        "400":
+          description: Title query parameter missing or blank
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+        "404":
           description: Movie title not found
           content:
             application/json:
@@ -137,9 +177,11 @@ paths:
         - name: rate
           in: path
           required: true
-          description: New rating to assign to the movie
+          description: New numeric rating between 0 and 10
           schema:
-            type: string
+            type: number
+            minimum: 0
+            maximum: 10
       responses:
         "200":
           description: Movie updated successfully
@@ -147,7 +189,13 @@ paths:
             application/json:
               schema:
                 $ref: "#/components/schemas/Movie"
-        "500":
+        "400":
+          description: Rating must be a finite number between 0 and 10
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+        "404":
           description: Movie ID not found
           content:
             application/json:
@@ -171,16 +219,20 @@ components:
       properties:
         id:
           type: string
-          format: uuid
-          description: Unique identifier of the movie
+          minLength: 1
+          description: Unique identifier stored in the movie's JSON body
           example: "720d006c-3a57-4b6a-b18f-9b713b073f3c"
         title:
           type: string
+          minLength: 1
+          pattern: '\S'
           description: Movie title
           example: "The Good Dinosaur"
         rating:
           type: number
           format: float
+          minimum: 0
+          maximum: 10
           description: Rating assigned to the movie
           example: 7.4
         director:

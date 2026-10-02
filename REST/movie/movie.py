@@ -1,29 +1,119 @@
-from flask import Flask, request, jsonify, make_response
 import json
-import sys
-from werkzeug.exceptions import NotFound
+import math
+from pathlib import Path
+
+from flask import Flask, jsonify, make_response, request, url_for
 
 app = Flask(__name__)
 
 PORT = 3200
 HOST = '0.0.0.0'
 
-with open('{}/databases/movies.json'.format("."), 'r') as jsf:
+MOVIES_PATH = Path(__file__).resolve().parent / 'databases' / 'movies.json'
+
+with MOVIES_PATH.open(encoding='utf-8') as jsf:
     movies = json.load(jsf)["movies"]
-    print(movies)
+
 
 def write(movies):
-    with open('{}/databases/movies.json'.format("."), 'w') as f:
-        full = {}
-        full['movies']=movies
-        json.dump(full, f)
+    """Enregistre la liste des films dans le fichier JSON du service."""
+    with MOVIES_PATH.open('w', encoding='utf-8') as f:
+        json.dump({'movies': movies}, f, ensure_ascii=False, indent=2)
 
-# root message
+
+def valid_rating(value):
+    """Vérifie qu'une note est un nombre fini compris entre 0 et 10."""
+    return (
+        isinstance(value, (int, float))
+        and not isinstance(value, bool)
+        and 0 <= value <= 10
+        and math.isfinite(value)
+    )
+
+
 @app.route("/", methods=['GET'])
 def home():
-    return make_response("<h1 style='color:blue'>Welcome to the Movie service!</h1>",200)
+    """Retourne la page d'accueil HTML du service."""
+    return make_response("<h1 style='color:blue'>Welcome to the Movie service!</h1>", 200)
+
+
+@app.route("/movies", methods=['GET'])
+def get_movies():
+    """Retourne tous les films au format JSON (200)."""
+    res = make_response(jsonify(movies), 200)
+    return res
+
+
+@app.route("/movies/<movieid>", methods=['GET'])
+def get_movies_byid(movieid):
+    """Retourne le film demandé (200), ou une erreur si absent (404)."""
+    for movie in movies:
+        if str(movie["id"]) == str(movieid):
+            return make_response(jsonify(movie), 200)
+    return make_response(jsonify({"error": "Movie ID not found."}), 404)
+
+
+@app.route('/moviesbytitle', methods=['GET'])
+def get_movie_bytitle():
+    """Recherche un titre exact : succès 200, paramètre invalide 400, absent 404."""
+    title = request.args.get('title')
+    if title is None or not title.strip():
+        return jsonify({'error': 'A non-empty title query parameter is required.'}), 400
+    for movie in movies:
+        if movie['title'] == title:
+            return jsonify(movie), 200
+    return jsonify({'error': 'Movie title not found.'}), 404
+
+
+@app.route("/movies/<movieid>", methods=["POST"])
+def add_movie(movieid):
+    """Crée un film (201), ou renvoie 409 (doublon), 415 (format)."""
+    if not request.is_json:
+        return jsonify({'error': 'Content-Type must be application/json.'}), 415
+    req = request.get_json()
+    for movie in movies:
+        if str(movie["id"]) == str(movieid):
+            return make_response(jsonify({"error": "Movie ID already exists."}), 409)
+    movies.append(req)
+    write(movies)
+
+    response = make_response(jsonify({'message': 'Movie added.'}), 200)
+    return response
+
+
+@app.route("/movies/<movieid>/<rate>", methods=['PUT'])
+def update_movie_rating(movieid, rate):
+    """Met à jour une note (200), ou retourne 400 si invalide et 404 si film absent."""
+    try:
+        rating = float(rate)
+    except ValueError:
+        return jsonify({'error': 'Movie rating must be a number between 0 and 10.'}), 400
+    if not valid_rating(rating):
+        return jsonify({'error': 'Movie rating must be a number between 0 and 10.'}), 400
+    for movie in movies:
+        if str(movie["id"]) == str(movieid):
+            movie["rating"] = rating
+            res = make_response(jsonify(movie), 200)
+            write(movies)
+            return res
+
+    res = make_response(jsonify({"error": "Movie ID not found."}), 404)
+    return res
+
+
+@app.route("/movies/<movieid>", methods=['DELETE'])
+def del_movie(movieid):
+    """Supprime et retourne un film (200), ou une erreur si absent (404)."""
+    for movie in movies:
+        if str(movie["id"]) == str(movieid):
+            movies.remove(movie)
+            write(movies)
+            return make_response(jsonify(movie), 200)
+
+    res = make_response(jsonify({"error": "Movie ID not found."}), 404)
+    return res
+
 
 if __name__ == "__main__":
-    #p = sys.argv[1]
     print("Server running in port %s"%(PORT))
     app.run(host=HOST, port=PORT)
