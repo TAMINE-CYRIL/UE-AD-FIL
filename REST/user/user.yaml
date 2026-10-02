@@ -1,0 +1,201 @@
+openapi: 3.0.3
+info:
+  title: User Service API
+  description: API for browsing, adding, updating activity, and deleting users.
+  version: "1.0.0"
+  contact:
+    name: Cyril Tamine, Igor Gallea
+    email: cyril.tamine@imt-atlantique.fr
+servers:
+  - url: http://localhost:3203
+    description: Local development server
+
+tags:
+- name: admin
+  description: User management operations (authentication is not implemented).
+- name: dev
+  description: Operations available to regular developers
+
+paths:
+  /:
+    get:
+      tags:
+        - dev
+      summary: Service home page
+      description: Returns an HTML welcome message.
+      responses:
+        "200":
+          description: HTML welcome message
+          content:
+            text/html:
+              schema:
+                type: string
+                example: "<h1 style='color:blue'>Welcome to the User service!</h1>"
+
+  /users:
+    get:
+      tags:
+        - dev
+      summary: Retrieve the full list of users
+      description: Returns the list of all available users.
+      responses:
+        "200":
+          description: List of users
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/User"
+
+  /users/{userid}:
+    get:
+      tags:
+        - dev
+      summary: Retrieve a user by its ID
+      parameters:
+        - $ref: "#/components/parameters/UserId"
+      responses:
+        "200":
+          description: User found
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/User"
+        "404":
+          description: User ID not found
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+
+    post:
+      tags:
+        - admin
+      summary: Add a new user
+      description: The URL ID is used to detect duplicates. The user is stored from the JSON request body.
+      parameters:
+        - $ref: "#/components/parameters/UserId"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/User"
+      responses:
+        "200":
+          description: User added successfully
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  message:
+                    type: string
+                    example: "User added."
+        "400":
+          description: Malformed JSON request body
+          content:
+            text/html:
+              schema:
+                type: string
+        "415":
+          description: Request body must use a JSON content type
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+        "409":
+          description: User ID already exists
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+
+    delete:
+      tags:
+        - admin
+      summary: Delete a user by its ID
+      parameters:
+        - $ref: "#/components/parameters/UserId"
+      responses:
+        "200":
+          description: Deleted user
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/User"
+        "404":
+          description: User ID not found
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+
+  /users/{userid}/{last_active}:
+    put:
+      tags:
+        - admin
+      summary: Update a user's last activity timestamp
+      parameters:
+        - $ref: "#/components/parameters/UserId"
+        - name: last_active
+          in: path
+          required: true
+          description: New integer timestamp for the last activity
+          schema:
+            type: integer
+      responses:
+        "200":
+          description: User updated successfully
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/User"
+        "400":
+          description: Last activity timestamp must be an integer
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+        "404":
+          description: User ID not found
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+
+components:
+  parameters:
+    UserId:
+      name: userid
+      in: path
+      required: true
+      description: Unique identifier of the user
+      schema:
+        type: string
+
+  schemas:
+    User:
+      type: object
+      description: Representation of a user. The POST request body is stored as supplied without field validation.
+      properties:
+        id:
+          type: string
+          description: Unique identifier stored in the user's JSON body
+          example: "chris_rivers"
+        name:
+          type: string
+          description: User name
+          example: "Chris Rivers"
+        last_active:
+          type: integer
+          description: Unix timestamp of the user's last activity
+          example: 1360031010
+
+    Error:
+      type: object
+      properties:
+        error:
+          type: string
+          example: "User ID not found"

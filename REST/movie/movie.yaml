@@ -4,9 +4,8 @@ info:
   description: API for browsing, adding, rating, and deleting movies.
   version: "1.0.0"
   contact:
-    name: Helene Coullon
-    url: https://helene-coullon.fr/
-    email: helene.coullon@imt-atlantique.fr
+    name: Cyril Tamine, Igor Gallea
+    email: cyril.tamine@imt-atlantique.fr
 servers:
   - url: http://localhost:3200
     description: Local development server
