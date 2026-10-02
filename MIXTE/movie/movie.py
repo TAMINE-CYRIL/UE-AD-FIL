@@ -39,19 +39,6 @@ def graphql_server():
     status_code = 200 if success else 400
     return jsonify(result), status_code
 
-def update_movie_rate(_,info,_id,_rate):
-    newmovies = {}
-    newmovie = {}
-    with open('{}/data/movies.json'.format("."), "r") as rfile:
-        movies = json.load(rfile)
-        for movie in movies['movies']:
-            if movie['id'] == _id:
-                movie['rating'] = _rate
-                newmovie = movie
-                newmovies = movies
-    with open('{}/data/movies.json'.format("."), "w") as wfile:
-        json.dump(newmovies, wfile)
-    return newmovie
 
 if __name__ == "__main__":
     print("Server running in port %s"%(PORT))
