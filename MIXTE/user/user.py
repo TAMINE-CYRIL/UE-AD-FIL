@@ -5,16 +5,6 @@ import json
 from werkzeug.exceptions import NotFound
 from pathlib import Path
 
-# CALLING gRPC requests
-import grpc
-from concurrent import futures
-import booking_pb2
-import booking_pb2_grpc
-import movie_pb2
-import movie_pb2_grpc
-
-# CALLING GraphQL requests
-
 app = Flask(__name__)
 
 PORT = 3004
@@ -23,7 +13,7 @@ HOST = '0.0.0.0'
 with open('{}/data/users.json'.format("."), "r") as jsf:
    users = json.load(jsf)["users"]
 
-USERS_PATH = Path(__file__).resolve().parent / 'databases' / 'users.json'
+USERS_PATH = Path(__file__).resolve().parent / 'data' / 'users.json'
 
 with USERS_PATH.open(encoding='utf-8') as jsf:
     users = json.load(jsf)["users"]
