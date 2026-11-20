@@ -12,8 +12,6 @@ HOST = "0.0.0.0"
 
 SCHEDULE_URL = "http://localhost:3202"
 MOVIE_URL = "http://localhost:3200"
-USER_URL = "http://localhost:3203"
-
 BOOKINGS_PATH = Path(__file__).resolve().parent / "databases" / "bookings.json"
 
 with BOOKINGS_PATH.open(encoding="utf-8") as f:

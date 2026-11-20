@@ -32,15 +32,11 @@ def get_schedule():
 @app.route("/schedule/<date>", methods=['GET'])
 def get_schedule_bydate(date):
    """Renvoie un planning basé sur sa date. Renvoie 404 si la date n'est pas trouvé, sinon 200"""
-   json = ""
    for showtime in schedule:
-      if str(showtime["date"]) == str(date):
-         json = showtime
-   if not json:
-      res = make_response(jsonify({"error" : "Date not found."}), 404)
-   else: 
-      res = make_response(jsonify(json), 200)
-   return res
+        if str(showtime["date"]) == date:
+            return jsonify(showtime), 200
+
+   return jsonify({"error": "Date not found."}), 404
 
 @app.route("/schedule/<date>", methods=["POST"])
 def create_schedule(date):
