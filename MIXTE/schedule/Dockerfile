@@ -1,19 +1,16 @@
-FROM python
+FROM python:3.14-slim
 # can you find a lighter image?
 
 WORKDIR /app
 
 # copy the requirements file in the workdir
-RUN
+COPY requirements.txt .
 
 # install the Python requirements
-RUN
-
-# grpc compilation of proto files or copy of generated files
-RUN
+RUN pip install -r requirements.txt
 
 # copy the app files and directories
-RUN
+COPY schedule/ .
 
 # start movie.py when the container is started
-CMD 
+CMD ["python", "schedule.py"]
