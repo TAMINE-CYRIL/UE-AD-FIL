@@ -1,6 +1,4 @@
 import json
-import math
-from pathlib import Path
 
 from flask import Flask, jsonify, make_response, request, url_for
 
@@ -9,16 +7,16 @@ app = Flask(__name__)
 PORT = 3200
 HOST = '0.0.0.0'
 
-MOVIES_PATH = Path(__file__).resolve().parent / 'databases' / 'movies.json'
-
-with MOVIES_PATH.open(encoding='utf-8') as jsf:
+with open('{}/databases/movies.json'.format("."), "r") as jsf:
     movies = json.load(jsf)["movies"]
 
 
 def write(movies):
     """Enregistre la liste des films dans le fichier JSON du service."""
-    with MOVIES_PATH.open('w', encoding='utf-8') as f:
-        json.dump({'movies': movies}, f, ensure_ascii=False, indent=2)
+    with open('{}/databases/movies.json'.format("."), 'w') as f:
+        full = {}
+        full['movies'] = movies
+        json.dump(full, f)
 
 
 def valid_rating(value):
@@ -27,7 +25,6 @@ def valid_rating(value):
         isinstance(value, (int, float))
         and not isinstance(value, bool)
         and 0 <= value <= 10
-        and math.isfinite(value)
     )
 
 

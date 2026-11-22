@@ -1,6 +1,5 @@
 
 import json
-from pathlib import Path
 
 import requests
 from flask import Flask, jsonify, request
@@ -12,16 +11,17 @@ HOST = "0.0.0.0"
 
 SCHEDULE_URL = "http://localhost:3202"
 MOVIE_URL = "http://localhost:3200"
-BOOKINGS_PATH = Path(__file__).resolve().parent / "databases" / "bookings.json"
 
-with BOOKINGS_PATH.open(encoding="utf-8") as f:
-    bookings = json.load(f)["bookings"]
+with open('{}/databases/bookings.json'.format("."), "r") as jsf:
+    bookings = json.load(jsf)["bookings"]
 
 
 def write():
     """Sauvegarde les réservations dans le fichier JSON."""
-    with BOOKINGS_PATH.open("w", encoding="utf-8") as f:
-        json.dump({"bookings": bookings}, f, indent=2, ensure_ascii=False)
+    with open('{}/databases/bookings.json'.format("."), 'w') as f:
+        full = {}
+        full['bookings'] = bookings
+        json.dump(full, f)
 
 
 def find_user(userid):

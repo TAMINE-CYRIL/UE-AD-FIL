@@ -1,5 +1,4 @@
 import json
-from pathlib import Path
 
 from flask import Flask, jsonify, make_response, request
 
@@ -8,16 +7,16 @@ app = Flask(__name__)
 PORT = 3203
 HOST = '0.0.0.0'
 
-USERS_PATH = Path(__file__).resolve().parent / 'databases' / 'users.json'
-
-with USERS_PATH.open(encoding='utf-8') as jsf:
+with open('{}/databases/users.json'.format("."), "r") as jsf:
     users = json.load(jsf)["users"]
 
 
 def write(users):
     """Enregistre la liste des utilisateurs dans le fichier JSON du service."""
-    with USERS_PATH.open('w', encoding='utf-8') as f:
-        json.dump({'users': users}, f, ensure_ascii=False, indent=2)
+    with open('{}/databases/users.json'.format("."), 'w') as f:
+        full = {}
+        full['users'] = users
+        json.dump(full, f)
 
 
 @app.route("/", methods=['GET'])
@@ -53,7 +52,7 @@ def add_user(userid):
     users.append(req)
     write(users)
 
-    response = make_response(jsonify({'message': 'User added.'}), 200)
+    response = make_response(jsonify({'message': 'User added.'}), 201)
     return response
 
 
