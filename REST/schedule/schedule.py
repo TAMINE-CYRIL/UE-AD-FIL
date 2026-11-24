@@ -24,7 +24,6 @@ def home():
    return "<h1 style='color:blue'>Welcome to the Showtime service!</h1>"
 
 @app.route("/schedule", methods=['GET'])
-
 def get_schedule():
    """Renvoie l'intégralité des plannings, renvoie 200"""
    return make_response(jsonify(schedule), 200)
@@ -40,7 +39,7 @@ def get_schedule_bydate(date):
 
 @app.route("/schedule/<date>", methods=["POST"])
 def create_schedule(date):
-   """Crée un planning, renvoie 409 si la date existe déjà, sinon 200"""
+   """Crée un planning, renvoie 409 si la date existe déjà, sinon 201"""
    req = request.get_json()
    for showtime in schedule:
       if showtime["date"] == str(date):
@@ -48,7 +47,7 @@ def create_schedule(date):
 
    schedule.append(req)
    write(schedule)
-   return make_response(jsonify({"message": "Schedule added."}), 200)
+   return make_response(jsonify({"message": "Schedule added."}), 201)
 
 @app.route("/schedule/<date>", methods=['DELETE'])
 def delete_schedule(date):
