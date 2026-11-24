@@ -1,0 +1,190 @@
+openapi: 3.0.3
+info:
+  title: Schedule Service API
+  description: API for browsing, adding, and deleting movie schedules.
+  version: "1.0.0"
+servers:
+  - url: http://localhost:3202
+    description: Local development server
+
+tags:
+  - name: dev
+    description: Schedule browsing operations
+  - name: admin
+    description: Schedule management operations (authentication is not implemented).
+
+paths:
+  /:
+    get:
+      tags:
+        - dev
+      summary: Service home page
+      responses:
+        "200":
+          description: HTML welcome message
+          content:
+            text/html:
+              schema:
+                type: string
+                example: "<h1 style='color:blue'>Welcome to the Showtime service!</h1>"
+
+  /schedule:
+    get:
+      tags:
+        - dev
+      summary: List all schedules
+      responses:
+        "200":
+          description: List of schedules
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/Schedule"
+
+  /schedule/{date}:
+    parameters:
+      - name: date
+        in: path
+        required: true
+        description: Date identifier of the schedule, typically written as YYYYMMDD.
+        schema:
+          type: string
+        example: "20151201"
+    get:
+      tags:
+        - dev
+      summary: Retrieve a schedule by date
+      responses:
+        "200":
+          description: Schedule found
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Schedule"
+        "404":
+          description: Date not found
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+              example:
+                error: "Date not found."
+    post:
+      tags:
+        - admin
+      summary: Add a schedule
+      description: The date in the JSON body must match the date in the URL. The movie list may be empty.
+      parameters:
+        - name: date
+          in: path
+          required: true
+          description: Date identifier of the new schedule, typically written as YYYYMMDD.
+          schema:
+            type: string
+          example: "20151206"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/Schedule"
+            example:
+              date: "20151206"
+              movies:
+                - "267eedb8-0f5d-42d5-8f43-72426b9fb3e6"
+      responses:
+        "201":
+          description: Schedule added
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Message"
+              example:
+                message: "Schedule added."
+        "400":
+          description: Malformed JSON, invalid schedule data, or body date different from URL date
+          content:
+            text/html:
+              schema:
+                type: string
+                description: Default Flask response for malformed JSON
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+              example:
+                error: "Schedule date must match the URL date."
+        "409":
+          description: A schedule already exists for this date
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+              example:
+                error: "This date already exists."
+        "415":
+          description: Request body must use a JSON content type
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+              example:
+                error: "Content-Type must be application/json."
+    delete:
+      tags:
+        - admin
+      summary: Delete a schedule by date
+      responses:
+        "200":
+          description: Schedule deleted
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Message"
+              example:
+                message: "Schedule deleted."
+        "404":
+          description: Schedule not found
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+              example:
+                error: "Schedule not found."
+
+components:
+  schemas:
+    Schedule:
+      type: object
+      required:
+        - date
+        - movies
+      properties:
+        date:
+          type: string
+          description: Date identifier, typically written as YYYYMMDD.
+          example: "20151201"
+        movies:
+          type: array
+          description: IDs of the films scheduled for the date.
+          items:
+            type: string
+            minLength: 1
+            pattern: '\S'
+          example:
+            - "267eedb8-0f5d-42d5-8f43-72426b9fb3e6"
+    Message:
+      type: object
+      required:
+        - message
+      properties:
+        message:
+          type: string
+    Error:
+      type: object
+      required:
+        - error
+      properties:
+        error:
+          type: string
