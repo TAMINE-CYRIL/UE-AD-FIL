@@ -2,8 +2,11 @@ import json
 import os
 
 import requests
+from graphql import GraphQLError
 
 MOVIE_URL = os.environ.get('MOVIE_URL', 'http://localhost:3200/graphql')
+SCHEDULE_URL = os.environ.get('SCHEDULE_URL', 'http://localhost:3202')
+TIMEOUT = 5
 
 MOVIE_QUERY = """
 query($id: String!) {
@@ -17,11 +20,33 @@ query($id: String!) {
 """
 
 
+def booking_error(message, code):
+    """Erreur GraphQL avec un code machine dans 'extensions' (BAD_REQUEST, NOT_FOUND, CONFLICT,
+    SERVICE_UNAVAILABLE), pour que les clients n'aient pas à analyser le texte du message."""
+    return GraphQLError(message, extensions={'code': code})
+
+
 def get_movie(movieid):
-    """Récupère un film auprès du service Movie via une requête GraphQL."""
-    response = requests.post(MOVIE_URL, json={'query': MOVIE_QUERY, 'variables': {'id': movieid}})
-    response.raise_for_status()
-    return response.json()['data']['movie_with_id']
+    """Récupère un film auprès du service Movie via une requête GraphQL (None si inconnu)."""
+    try:
+        response = requests.post(MOVIE_URL, json={'query': MOVIE_QUERY, 'variables': {'id': movieid}},
+                                 timeout=TIMEOUT)
+        response.raise_for_status()
+        return response.json()['data']['movie_with_id']
+    except (requests.RequestException, ValueError, KeyError, TypeError):
+        raise booking_error('Movie service unavailable.', 'SERVICE_UNAVAILABLE')
+
+
+def get_scheduled_movies(date):
+    """Renvoie la liste des films programmés à une date (service Schedule, REST), ou [] si la date est inconnue."""
+    try:
+        response = requests.get('{}/schedule/{}'.format(SCHEDULE_URL, date), timeout=TIMEOUT)
+        if response.status_code == 404:
+            return []
+        response.raise_for_status()
+        return response.json()['movies']
+    except (requests.RequestException, ValueError, KeyError):
+        raise booking_error('Schedule service unavailable.', 'SERVICE_UNAVAILABLE')
 
 
 def bookings(_, info):
@@ -40,9 +65,11 @@ def booking_by_user(_, info, userid):
 
 def add_booking(_, info, userid, date, movieid):
     if not userid.strip():
-        raise ValueError('A non-empty userid is required.')
+        raise booking_error('A non-empty userid is required.', 'BAD_REQUEST')
     if get_movie(movieid) is None:
-        raise ValueError('Movie ID not found.')
+        raise booking_error('Movie ID not found.', 'BAD_REQUEST')
+    if movieid not in get_scheduled_movies(date):
+        raise booking_error('This movie is not scheduled on this date.', 'BAD_REQUEST')
 
     with open('{}/data/bookings.json'.format("."), "r") as rfile:
         bookings = json.load(rfile)
@@ -58,11 +85,11 @@ def add_booking(_, info, userid, date, movieid):
         user_booking['dates'].append(date_booking)
 
     if movieid in date_booking['movies']:
-        raise ValueError('This booking already exists.')
+        raise booking_error('This booking already exists.', 'CONFLICT')
     date_booking['movies'].append(movieid)
 
     with open('{}/data/bookings.json'.format("."), "w") as wfile:
-        json.dump(bookings, wfile)
+        json.dump(bookings, wfile, indent=2)
     return user_booking
 
 
@@ -73,8 +100,9 @@ def delete_booking(_, info, userid):
             if booking['userid'] == userid:
                 bookings['bookings'].remove(booking)
                 with open('{}/data/bookings.json'.format("."), "w") as wfile:
-                    json.dump(bookings, wfile)
+                    json.dump(bookings, wfile, indent=2)
                 return booking
+    raise booking_error('No booking found for this user.', 'NOT_FOUND')
 
 
 def resolve_movies_details(date_booking, info):
