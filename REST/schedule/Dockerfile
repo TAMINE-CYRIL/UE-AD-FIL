@@ -1,16 +1,12 @@
 FROM python:3.14-slim
-# can you find a lighter image?
 
 WORKDIR /app
 
-# copy the requirements file in the workdir
 COPY requirements.txt .
+RUN pip install --no-cache-dir -r requirements.txt
 
-# install the Python requirements
-RUN pip install -r requirements.txt
-
-# copy the app files and directories
 COPY schedule/ .
 
-# start movie.py when the container is started
+EXPOSE 3202
+
 CMD ["python", "schedule.py"]

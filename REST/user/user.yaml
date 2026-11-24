@@ -83,7 +83,7 @@ paths:
             schema:
               $ref: "#/components/schemas/User"
       responses:
-        "200":
+        "201":
           description: User added successfully
           content:
             application/json:
