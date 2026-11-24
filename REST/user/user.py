@@ -18,6 +18,20 @@ def write(users):
         full['users'] = users
         json.dump(full, f)
 
+def user_validation_error(user, userid):
+    """Retourne le premier message d'erreur si l'utilisateur est invalide."""
+    if not isinstance(user, dict):
+        return 'Request body must be a valid JSON object.'
+    name = user.get('name')
+    last_active = user.get('last_active')
+    if user.get('id') != userid:
+        return 'User ID must match the URL ID.'
+    if not isinstance(name, str) or not name.strip():
+        return 'User name must be a non-empty string.'
+    if type(last_active) is not int:
+        return 'User last_active must be an integer timestamp.'
+    return None
+
 
 @app.route("/", methods=['GET'])
 def home():
@@ -34,7 +48,7 @@ def get_users():
 
 @app.route("/users/<userid>", methods=['GET'])
 def get_users_byid(userid):
-    """Retourne l'utilisateur demandé (200), ou une erreur si absent (404)."""
+    """Retourne l'utilisateur demandé (201), ou une erreur si absent (404)."""
     for user in users:
         if str(user["id"]) == str(userid):
             return make_response(jsonify(user), 200)
@@ -42,10 +56,13 @@ def get_users_byid(userid):
 
 @app.route("/users/<userid>", methods=["POST"])
 def add_user(userid):
-    """Crée un utilisateur (201), ou renvoie 409 (doublon), 415 (format)."""
+    """Crée un utilisateur (201), ou renvoie 400, 409 ou 415."""
     if not request.is_json:
         return jsonify({'error': 'Content-Type must be application/json.'}), 415
     req = request.get_json()
+    error = user_validation_error(req, userid)
+    if error is not None:
+        return jsonify({'error': error}), 400
     for user in users:
         if str(user["id"]) == str(userid):
             return make_response(jsonify({"error": "User ID already exists."}), 409)

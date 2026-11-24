@@ -73,7 +73,7 @@ paths:
       tags:
         - admin
       summary: Add a new user
-      description: The URL ID is used to detect duplicates. The user is stored from the JSON request body.
+      description: The ID in the JSON body must match the URL ID, which is used to detect duplicates.
       parameters:
         - $ref: "#/components/parameters/UserId"
       requestBody:
@@ -94,11 +94,15 @@ paths:
                     type: string
                     example: "User added."
         "400":
-          description: Malformed JSON request body
+          description: Malformed JSON, invalid user data, or body ID different from URL ID
           content:
             text/html:
               schema:
                 type: string
+                description: Default Flask response for malformed JSON
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
         "415":
           description: Request body must use a JSON content type
           content:
@@ -178,20 +182,27 @@ components:
   schemas:
     User:
       type: object
-      description: Representation of a user. The POST request body is stored as supplied without field validation.
+      description: Representation of a user.
       properties:
         id:
           type: string
+          minLength: 1
           description: Unique identifier stored in the user's JSON body
           example: "chris_rivers"
         name:
           type: string
+          minLength: 1
+          pattern: '\S'
           description: User name
           example: "Chris Rivers"
         last_active:
           type: integer
           description: Unix timestamp of the user's last activity
           example: 1360031010
+      required:
+        - id
+        - name
+        - last_active
 
     Error:
       type: object
