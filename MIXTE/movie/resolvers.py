@@ -47,7 +47,7 @@ def add_movie(_, info, _id, title, director, rating):
         movies['movies'].append(newmovie)
 
     with open('{}/data/movies.json'.format("."), "w") as wfile:
-        json.dump(movies, wfile)
+        json.dump(movies, wfile, indent=2)
     return newmovie
 
 
@@ -68,8 +68,9 @@ def update_movie_rate(_, info, _id, _rate):
             if movie['id'] == _id:
                 movie['rating'] = _rate
                 with open('{}/data/movies.json'.format("."), "w") as wfile:
-                    json.dump(movies, wfile)
+                    json.dump(movies, wfile, indent=2)
                 return movie
+    raise ValueError('Movie ID not found.')
 
 
 def delete_movie(_, info, _id):
@@ -79,5 +80,6 @@ def delete_movie(_, info, _id):
             if movie['id'] == _id:
                 movies['movies'].remove(movie)
                 with open('{}/data/movies.json'.format("."), "w") as wfile:
-                    json.dump(movies, wfile)
+                    json.dump(movies, wfile, indent=2)
                 return movie
+    raise ValueError('Movie ID not found.')
