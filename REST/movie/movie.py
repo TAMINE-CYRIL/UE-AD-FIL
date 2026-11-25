@@ -28,6 +28,24 @@ def valid_rating(value):
     )
 
 
+def movie_validation_error(movie, movieid):
+    """Retourne le premier message d'erreur si le film est invalide."""
+    if not isinstance(movie, dict):
+        return 'Request body must be a valid JSON object.'
+    title = movie.get('title')
+    rating = movie.get('rating')
+    director = movie.get('director')
+    if movie.get('id') != movieid:
+        return 'Movie ID must match the URL ID.'
+    if not isinstance(title, str) or not title.strip():
+        return 'Movie title must be a non-empty string.'
+    if not valid_rating(rating):
+        return 'Movie rating must be a number between 0 and 10.'
+    if not isinstance(director, str):
+        return 'Movie director must be a string.'
+    return None
+
+
 @app.route("/", methods=['GET'])
 def home():
     """Retourne la page d'accueil HTML du service."""
@@ -64,17 +82,20 @@ def get_movie_bytitle():
 
 @app.route("/movies/<movieid>", methods=["POST"])
 def add_movie(movieid):
-    """Crée un film (201), ou renvoie 409 (doublon), 415 (format)."""
+    """Crée un film (201), ou renvoie 400, 409 ou 415."""
     if not request.is_json:
         return jsonify({'error': 'Content-Type must be application/json.'}), 415
     req = request.get_json()
+    error = movie_validation_error(req, movieid)
+    if error is not None:
+        return jsonify({'error': error}), 400
     for movie in movies:
         if str(movie["id"]) == str(movieid):
             return make_response(jsonify({"error": "Movie ID already exists."}), 409)
     movies.append(req)
     write(movies)
 
-    response = make_response(jsonify({'message': 'Movie added.'}), 200)
+    response = make_response(jsonify({'message': 'Movie added.'}), 201)
     return response
 
 

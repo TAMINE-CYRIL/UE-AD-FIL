@@ -73,7 +73,7 @@ paths:
       tags:
         - admin
       summary: Add a new movie
-      description: The URL ID is used to detect duplicates. The movie is stored from the JSON request body.
+      description: The ID in the JSON body must match the URL ID, which is used to detect duplicates.
       parameters:
         - $ref: "#/components/parameters/MovieId"
       requestBody:
@@ -94,11 +94,11 @@ paths:
                     type: string
                     example: "Movie added."
         "400":
-          description: Malformed JSON request body
+          description: Malformed JSON, invalid movie data, or body ID different from URL ID
           content:
-            text/html:
+            application/json:
               schema:
-                type: string
+                $ref: "#/components/schemas/Error"
         "415":
           description: Request body must use a JSON content type
           content:
@@ -241,6 +241,8 @@ components:
       required:
         - id
         - title
+        - rating
+        - director
 
     Error:
       type: object
