@@ -105,5 +105,29 @@ def delete_booking(_, info, userid):
     raise booking_error('No booking found for this user.', 'NOT_FOUND')
 
 
+def delete_booking_movie(_, info, userid, date, movieid):
+    """Retire une seule réservation (un film à une date). Les dates vides, puis l'utilisateur sans
+    réservation, sont retirés du fichier. Renvoie la réservation mise à jour de l'utilisateur."""
+    with open('{}/data/bookings.json'.format("."), "r") as rfile:
+        bookings = json.load(rfile)
+
+    user_booking = next((b for b in bookings['bookings'] if b['userid'] == userid), None)
+    date_booking = None
+    if user_booking is not None:
+        date_booking = next((d for d in user_booking['dates'] if d['date'] == date), None)
+    if date_booking is None or movieid not in date_booking['movies']:
+        raise booking_error('This booking does not exist.', 'NOT_FOUND')
+
+    date_booking['movies'].remove(movieid)
+    if not date_booking['movies']:
+        user_booking['dates'].remove(date_booking)
+    if not user_booking['dates']:
+        bookings['bookings'].remove(user_booking)
+
+    with open('{}/data/bookings.json'.format("."), "w") as wfile:
+        json.dump(bookings, wfile, indent=2)
+    return user_booking
+
+
 def resolve_movies_details(date_booking, info):
     return [get_movie(movieid) for movieid in date_booking['movies']]

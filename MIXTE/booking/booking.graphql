@@ -6,6 +6,7 @@ type Query {
 type Mutation {
     add_booking(userid: String!, date: String!, movieid: String!): Booking
     delete_booking(userid: String!): Booking
+    delete_booking_movie(userid: String!, date: String!, movieid: String!): Booking
 }
 
 type Booking {

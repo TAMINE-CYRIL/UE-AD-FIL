@@ -15,6 +15,7 @@ query.set_field('booking_by_user', r.booking_by_user)
 mutation = MutationType()
 mutation.set_field('add_booking', r.add_booking)
 mutation.set_field('delete_booking', r.delete_booking)
+mutation.set_field('delete_booking_movie', r.delete_booking_movie)
 
 date_booking = ObjectType('DateBooking')
 date_booking.set_field('movies_details', r.resolve_movies_details)

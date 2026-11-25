@@ -53,6 +53,18 @@ mutation($userid: String!, $date: String!, $movieid: String!) {
 }
 """
 
+DELETE_BOOKING_MOVIE_MUTATION = """
+mutation($userid: String!, $date: String!, $movieid: String!) {
+    delete_booking_movie(userid: $userid, date: $date, movieid: $movieid) {
+        userid
+        dates {
+            date
+            movies
+        }
+    }
+}
+"""
+
 
 # Correspondance entre le code d'erreur GraphQL renvoyé par Booking (extensions.code) et le code HTTP
 ERROR_STATUS = {
@@ -204,6 +216,18 @@ def add_user_booking(userid):
     if error:
         return make_response(jsonify({"error": error}), status)
     return make_response(jsonify(data['add_booking']), 200)
+
+
+@app.route("/users/<userid>/bookings/<date>/<movieid>", methods=['DELETE'])
+def delete_user_booking(userid, date, movieid):
+    """Retire une seule réservation (un film à une date) via Booking (GraphQL) : 200, ou 404."""
+    if find_user(userid) is None:
+        return make_response(jsonify({"error": "User ID not found."}), 404)
+    data, error, status = graphql_query(BOOKING_URL, DELETE_BOOKING_MOVIE_MUTATION,
+                                        {'userid': userid, 'date': date, 'movieid': movieid})
+    if error:
+        return make_response(jsonify({"error": error}), status)
+    return make_response(jsonify(data['delete_booking_movie']), 200)
 
 
 if __name__ == "__main__":
