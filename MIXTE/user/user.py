@@ -8,6 +8,8 @@ import os
 from datetime import timedelta
 from pathlib import Path
 
+from pymongo import MongoClient
+from bson.json_util import dumps
 from werkzeug.security import check_password_hash, generate_password_hash
 
 app = Flask(__name__)
@@ -90,24 +92,28 @@ ERROR_STATUS = {
     'SERVICE_UNAVAILABLE': 502,
 }
 
+# Fichier JSON qui sert uniquement à remplir la base au premier démarrage
 USERS_PATH = Path(__file__).resolve().parent / 'data' / 'users.json'
 
-with USERS_PATH.open(encoding='utf-8') as jsf:
-    users = json.load(jsf)["users"]
+# Connexion à la base MongoDB (dans Docker, MONGO_URL pointe sur le conteneur "mongo")
+MONGO_URL = os.environ.get('MONGO_URL', 'mongodb://root:example@localhost:27017/')
+client = MongoClient(MONGO_URL)
 
+# Base de données "users" et collection "users" (créées si elles n'existent pas)
+db = client["users"]
+collection = db["users"]
 
-def write(users):
-    """Enregistre la liste des utilisateurs dans le fichier JSON du service."""
-    with USERS_PATH.open('w', encoding='utf-8') as f:
-        json.dump({'users': users}, f, ensure_ascii=False, indent=2)
+# Chargement initial : on insère les utilisateurs du fichier JSON si la collection est vide
+# (sinon ils seraient ajoutés en double à chaque redémarrage du service)
+if collection.count_documents({}) == 0:
+    with USERS_PATH.open(encoding='utf-8') as jsf:
+        users = json.load(jsf)["users"]
+    collection.insert_many(users)
 
 
 def find_user(userid):
     """Renvoie l'utilisateur correspondant à l'identifiant, ou None."""
-    for user in users:
-        if str(user["id"]) == str(userid):
-            return user
-    return None
+    return collection.find_one({"id": str(userid)})
 
 
 def public_user(user):
@@ -206,9 +212,9 @@ def get_users():
     if error:
         return error
     result = []
-    for user in users:
+    for user in list(collection.find()):
         result.append(public_user(user))
-    return make_response(jsonify(result), 200)
+    return make_response(dumps(result), 200)
 
 
 @app.route("/users/<userid>", methods=['GET'])
@@ -221,7 +227,7 @@ def get_users_byid(userid):
     user = find_user(userid)
     if user is None:
         return make_response(jsonify({"error": "User ID not found."}), 404)
-    return make_response(jsonify(public_user(user)), 200)
+    return make_response(dumps(public_user(user)), 200)
 
 
 @app.route("/users/<userid>", methods=["POST"])
@@ -249,8 +255,7 @@ def add_user(userid):
     # Seul un admin connecté peut créer un autre admin (token facultatif sur cette route)
     if req.get('admin') and verify_jwt_in_request(optional=True) and is_admin():
         new_user['admin'] = True
-    users.append(new_user)
-    write(users)
+    collection.insert_one(new_user)
     return make_response(jsonify({'message': 'User added.'}), 200)
 
 
@@ -269,12 +274,12 @@ def update_user_last_active(userid):
     # type(...) is int refuse aussi True/False, qui sont des int en Python
     if type(timestamp) is not int:
         return make_response(jsonify({'error': "Field 'last_active' must be an integer timestamp."}), 400)
-    user = find_user(userid)
-    if user is None:
+    if find_user(userid) is None:
         return make_response(jsonify({"error": "User ID not found."}), 404)
-    user["last_active"] = timestamp
-    write(users)
-    return make_response(jsonify(public_user(user)), 200)
+    myquery = {"id": userid}
+    newvalues = {"$set": {"last_active": timestamp}}
+    collection.update_one(myquery, newvalues)
+    return make_response(dumps(public_user(find_user(userid))), 200)
 
 
 @app.route("/users/<userid>", methods=['DELETE'])
@@ -287,9 +292,8 @@ def del_user(userid):
     user = find_user(userid)
     if user is None:
         return make_response(jsonify({"error": "User ID not found."}), 404)
-    users.remove(user)
-    write(users)
-    return make_response(jsonify(public_user(user)), 200)
+    collection.delete_one({"id": userid})
+    return make_response(dumps(public_user(user)), 200)
 
 
 @app.route("/users/<userid>/bookings", methods=['GET'])
