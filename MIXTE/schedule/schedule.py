@@ -1,10 +1,18 @@
 from flask import Flask, request, jsonify, make_response
+from flask_jwt_extended import JWTManager, get_jwt, jwt_required
 import json
+import os
+from datetime import timedelta
 from pathlib import Path
 
-from auth import get_connected_user
-
 app = Flask(__name__)
+
+# Initialisation de la partie JWT (même secret dans les 4 services, défini dans le .env)
+app.config["JWT_SECRET_KEY"] = os.environ.get('JWT_SECRET', 'dev-secret-change-me')
+app.config["JWT_TOKEN_LOCATION"] = ["headers", "cookies"]
+app.config["JWT_COOKIE_SECURE"] = False
+app.config["JWT_ACCESS_TOKEN_EXPIRES"] = timedelta(hours=1)
+jwt = JWTManager(app)
 
 PORT = 3202
 HOST = '0.0.0.0'
@@ -24,11 +32,11 @@ def write(schedule):
 
 
 def check_admin():
-    """Renvoie une réponse d'erreur si l'appelant n'est pas admin (401 ou 403), sinon None."""
-    user = get_connected_user()
-    if user is None:
-        return make_response(jsonify({"error": "Authentication required."}), 401)
-    if not user['admin']:
+    """Renvoie une réponse d'erreur 403 si l'utilisateur du token n'est pas admin, sinon None.
+    (Le token lui-même est déjà vérifié par @jwt_required() : 401 s'il est absent ou expiré.)"""
+    claims = get_jwt()
+    # Si le champ "admin" n'est pas dans le token, l'utilisateur n'est pas admin
+    if not claims.get('admin', False):
         return make_response(jsonify({"error": "Admin rights required."}), 403)
     return None
 
@@ -55,6 +63,7 @@ def get_schedule_bydate(date):
 
 
 @app.route("/schedule/<date>", methods=["POST"])
+@jwt_required()
 def create_schedule(date):
     """Crée un planning (admin, sinon 401/403). Renvoie 415 si le corps n'est pas du JSON, 400 si la date du corps
     ne correspond pas à celle de l'URL, 409 si la date existe déjà, sinon 200."""
@@ -76,6 +85,7 @@ def create_schedule(date):
 
 
 @app.route("/schedule/<date>", methods=['DELETE'])
+@jwt_required()
 def delete_schedule(date):
     """Supprime un planning basé sur sa date (admin, sinon 401/403), renvoie 200 si le planning est supprimé.
     Sinon renvoie 404 si le planning n'est pas trouvé.

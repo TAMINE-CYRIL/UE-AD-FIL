@@ -3,9 +3,10 @@ import os
 from pathlib import Path
 
 import requests
+from flask_jwt_extended import get_jwt, get_jwt_identity, verify_jwt_in_request
+from flask_jwt_extended.exceptions import JWTExtendedException
 from graphql import GraphQLError
-
-from auth import get_connected_user
+from jwt.exceptions import PyJWTError
 
 MOVIE_URL = os.environ.get('MOVIE_URL', 'http://localhost:3200/graphql')
 SCHEDULE_URL = os.environ.get('SCHEDULE_URL', 'http://localhost:3202')
@@ -31,21 +32,32 @@ def booking_error(message, code):
     return GraphQLError(message, extensions={'code': code})
 
 
+def get_claims():
+    """Vérifie le token JWT de la requête (en-tête ou cookie) et renvoie son contenu,
+    ou None si le token est absent, invalide ou expiré."""
+    try:
+        verify_jwt_in_request()
+    except (JWTExtendedException, PyJWTError):
+        return None
+    return get_jwt()
+
+
 def check_admin():
     """Lève une erreur si l'appelant n'est pas connecté (UNAUTHENTICATED) ou n'est pas admin (FORBIDDEN)."""
-    user = get_connected_user()
-    if user is None:
+    claims = get_claims()
+    if claims is None:
         raise booking_error('Authentication required.', 'UNAUTHENTICATED')
-    if not user['admin']:
+    # Si le champ "admin" n'est pas dans le token, l'utilisateur n'est pas admin
+    if not claims.get('admin', False):
         raise booking_error('Admin rights required.', 'FORBIDDEN')
 
 
 def check_self_or_admin(userid):
     """Lève une erreur si l'appelant n'est pas connecté, ou s'il n'est ni `userid` ni admin."""
-    user = get_connected_user()
-    if user is None:
+    claims = get_claims()
+    if claims is None:
         raise booking_error('Authentication required.', 'UNAUTHENTICATED')
-    if user['sub'] != userid and not user['admin']:
+    if get_jwt_identity() != userid and not claims.get('admin', False):
         raise booking_error('You can only access your own bookings.', 'FORBIDDEN')
 
 

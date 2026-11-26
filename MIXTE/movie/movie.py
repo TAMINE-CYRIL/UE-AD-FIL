@@ -1,6 +1,9 @@
 from ariadne import graphql_sync, make_executable_schema, load_schema_from_path, ObjectType, QueryType, MutationType
 from flask import Flask, make_response, request, jsonify
+from flask_jwt_extended import JWTManager
 
+import os
+from datetime import timedelta
 from pathlib import Path
 
 import resolvers as r
@@ -8,6 +11,13 @@ import resolvers as r
 PORT = 3200
 HOST = '0.0.0.0'
 app = Flask(__name__)
+
+# Initialisation de la partie JWT (même secret dans les 4 services, défini dans le .env)
+app.config["JWT_SECRET_KEY"] = os.environ.get('JWT_SECRET', 'dev-secret-change-me')
+app.config["JWT_TOKEN_LOCATION"] = ["headers", "cookies"]
+app.config["JWT_COOKIE_SECURE"] = False
+app.config["JWT_ACCESS_TOKEN_EXPIRES"] = timedelta(hours=1)
+jwt = JWTManager(app)
 
 type_defs = load_schema_from_path(str(Path(__file__).resolve().parent / 'movie.graphql'))
 query = QueryType()
