@@ -1,0 +1,135 @@
+openapi: 3.0.3
+info:
+  title: Booking Service API
+  description: GraphQL API for browsing, adding, and deleting bookings (schema in booking.graphql). Calls Movie and Schedule to check bookings.
+  version: "1.0.0"
+  contact:
+    name: Cyril Tamine, Igor Gallea
+    email: igor.gallea@imt-atlantique.fr
+servers:
+  - url: http://localhost:3201
+    description: Local development server
+
+tags:
+- name: admin
+  description: "Query bookings (JWT with admin claim)."
+- name: dev
+  description: "Queries and mutations booking_by_user, add_booking, delete_booking, delete_booking_movie (JWT of the user concerned or of an admin)."
+
+paths:
+  /:
+    get:
+      tags:
+        - dev
+      summary: Service home page
+      description: Returns an HTML welcome message.
+      responses:
+        "200":
+          description: HTML welcome message
+          content:
+            text/html:
+              schema:
+                type: string
+                example: "<h1 style='color:blue'>Welcome to the Booking service!</h1>"
+
+  /graphql:
+    post:
+      tags:
+        - dev
+        - admin
+      summary: Execute a GraphQL query or mutation
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                query:
+                  type: string
+                variables:
+                  type: object
+            examples:
+              bookings:
+                value:
+                  query: "{ bookings { userid dates { date movies } } }"
+              booking_by_user:
+                value:
+                  query: "{ booking_by_user(userid: \"chris_rivers\") { dates { date movies movies_details { title } } } }"
+              add_booking:
+                value:
+                  query: "mutation { add_booking(userid: \"chris_rivers\", date: \"20151130\", movieid: \"720d006c-3a57-4b6a-b18f-9b713b073f3c\") { dates { date movies } } }"
+              delete_booking:
+                value:
+                  query: "mutation { delete_booking(userid: \"chris_rivers\") { userid } }"
+              delete_booking_movie:
+                value:
+                  query: "mutation { delete_booking_movie(userid: \"chris_rivers\", date: \"20151201\", movieid: \"267eedb8-0f5d-42d5-8f43-72426b9fb3e6\") { dates { date movies } } }"
+      responses:
+        "200":
+          description: "Result in `data`. On error, the field is null and `errors[].extensions.code` is BAD_REQUEST, NOT_FOUND, CONFLICT, UNAUTHENTICATED, FORBIDDEN or SERVICE_UNAVAILABLE."
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  data:
+                    type: object
+                  errors:
+                    type: array
+                    items:
+                      $ref: "#/components/schemas/Error"
+        "400":
+          description: Invalid GraphQL query
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  errors:
+                    type: array
+                    items:
+                      $ref: "#/components/schemas/Error"
+
+components:
+  schemas:
+    Booking:
+      type: object
+      description: Representation of the bookings of a user.
+      properties:
+        userid:
+          type: string
+          example: "chris_rivers"
+        dates:
+          type: array
+          items:
+            type: object
+            properties:
+              date:
+                type: string
+                example: "20151201"
+              movies:
+                type: array
+                items:
+                  type: string
+                example: ["267eedb8-0f5d-42d5-8f43-72426b9fb3e6"]
+              movies_details:
+                type: array
+                description: Movie details fetched from the Movie service
+                items:
+                  type: object
+      required:
+        - userid
+
+    Error:
+      type: object
+      properties:
+        message:
+          type: string
+          example: "This booking does not exist."
+        extensions:
+          type: object
+          properties:
+            code:
+              type: string
+              example: "NOT_FOUND"

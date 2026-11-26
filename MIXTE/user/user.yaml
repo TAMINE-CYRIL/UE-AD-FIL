@@ -1,0 +1,411 @@
+openapi: 3.0.3
+info:
+  title: User Service API
+  description: API for logging in, browsing, adding, updating activity, and deleting users, and for managing their bookings.
+  version: "1.0.0"
+  contact:
+    name: Cyril Tamine, Igor Gallea
+    email: igor.gallea@imt-atlantique.fr
+servers:
+  - url: http://localhost:3203
+    description: Local development server
+
+tags:
+- name: admin
+  description: Operations reserved to admins (JWT with admin claim).
+- name: dev
+  description: Operations available to regular developers (JWT of the user concerned or of an admin, except login and registration).
+
+paths:
+  /:
+    get:
+      tags:
+        - dev
+      summary: Service home page
+      description: Returns an HTML welcome message.
+      responses:
+        "200":
+          description: HTML welcome message
+          content:
+            text/html:
+              schema:
+                type: string
+                example: "<h1 style='color:blue'>Welcome to the User service!</h1>"
+
+  /login:
+    post:
+      tags:
+        - dev
+      summary: Log in and get a JWT
+      description: Returns a JWT (valid 1 hour) in the body and in a cookie.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                id:
+                  type: string
+                  example: "michael_scott"
+                password:
+                  type: string
+                  example: "michael123"
+      responses:
+        "200":
+          description: Login successful
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  token:
+                    type: string
+        "401":
+          description: Invalid credentials
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+
+  /users:
+    get:
+      tags:
+        - admin
+      summary: Retrieve the full list of users
+      description: Returns the list of all available users.
+      responses:
+        "200":
+          description: List of users
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/User"
+        "403":
+          description: Admin rights required
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+
+  /users/{userid}:
+    get:
+      tags:
+        - dev
+      summary: Retrieve a user by its ID
+      parameters:
+        - $ref: "#/components/parameters/UserId"
+      responses:
+        "200":
+          description: User found
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/User"
+        "404":
+          description: User ID not found
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+
+    post:
+      tags:
+        - dev
+      summary: Add a new user
+      description: The ID in the JSON body must match the URL ID. The password is hashed, `admin` is forced to false unless the caller is an admin.
+      parameters:
+        - $ref: "#/components/parameters/UserId"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                id:
+                  type: string
+                  example: "jane_doe"
+                name:
+                  type: string
+                  example: "Jane Doe"
+                password:
+                  type: string
+                  example: "jane123"
+              required:
+                - id
+                - password
+      responses:
+        "200":
+          description: User added successfully
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  message:
+                    type: string
+                    example: "User added."
+        "400":
+          description: Body ID different from URL ID, or missing password
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+        "409":
+          description: User ID already exists
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+
+    put:
+      tags:
+        - dev
+      summary: Update a user's last activity timestamp
+      parameters:
+        - $ref: "#/components/parameters/UserId"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                last_active:
+                  type: integer
+                  example: 1700000000
+      responses:
+        "200":
+          description: User updated successfully
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/User"
+        "400":
+          description: Last activity timestamp must be an integer
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+        "404":
+          description: User ID not found
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+
+    delete:
+      tags:
+        - dev
+      summary: Delete a user by its ID
+      parameters:
+        - $ref: "#/components/parameters/UserId"
+      responses:
+        "200":
+          description: Deleted user
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/User"
+        "404":
+          description: User ID not found
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+
+  /users/{userid}/bookings:
+    get:
+      tags:
+        - dev
+      summary: Retrieve the bookings of a user (via Booking)
+      parameters:
+        - $ref: "#/components/parameters/UserId"
+      responses:
+        "200":
+          description: Bookings of the user
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Booking"
+        "404":
+          description: User ID not found or no booking
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+
+    post:
+      tags:
+        - dev
+      summary: Add a booking for a user (via Booking)
+      parameters:
+        - $ref: "#/components/parameters/UserId"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                date:
+                  type: string
+                  example: "20151130"
+                movieid:
+                  type: string
+                  example: "720d006c-3a57-4b6a-b18f-9b713b073f3c"
+      responses:
+        "200":
+          description: Updated bookings of the user
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Booking"
+        "400":
+          description: Missing fields, unknown movie, or movie not scheduled on this date
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+        "409":
+          description: Booking already exists
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+
+  /users/{userid}/bookings/movies:
+    get:
+      tags:
+        - dev
+      summary: Retrieve the bookings of a user with movie details (via Booking and Movie)
+      parameters:
+        - $ref: "#/components/parameters/UserId"
+      responses:
+        "200":
+          description: Bookings with movie details
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  userid:
+                    type: string
+                  dates:
+                    type: array
+                    items:
+                      type: object
+                      properties:
+                        date:
+                          type: string
+                        movies_details:
+                          type: array
+                          items:
+                            type: object
+                            properties:
+                              id:
+                                type: string
+                              title:
+                                type: string
+                              director:
+                                type: string
+                              rating:
+                                type: number
+        "404":
+          description: User ID not found or no booking
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+
+  /users/{userid}/bookings/{date}/{movieid}:
+    delete:
+      tags:
+        - dev
+      summary: Remove one booking of a user (via Booking)
+      parameters:
+        - $ref: "#/components/parameters/UserId"
+        - name: date
+          in: path
+          required: true
+          schema:
+            type: string
+        - name: movieid
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        "200":
+          description: Updated bookings of the user
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Booking"
+        "404":
+          description: User ID not found or booking does not exist
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+
+components:
+  parameters:
+    UserId:
+      name: userid
+      in: path
+      required: true
+      description: Unique identifier of the user
+      schema:
+        type: string
+
+  schemas:
+    User:
+      type: object
+      description: Representation of a user (the password hash is never returned).
+      properties:
+        id:
+          type: string
+          example: "chris_rivers"
+        name:
+          type: string
+          example: "Chris Rivers"
+        last_active:
+          type: integer
+          example: 1360031010
+        admin:
+          type: boolean
+          example: false
+      required:
+        - id
+        - name
+        - last_active
+
+    Booking:
+      type: object
+      properties:
+        userid:
+          type: string
+          example: "chris_rivers"
+        dates:
+          type: array
+          items:
+            type: object
+            properties:
+              date:
+                type: string
+                example: "20151201"
+              movies:
+                type: array
+                items:
+                  type: string
+
+    Error:
+      type: object
+      properties:
+        error:
+          type: string
+          example: "User ID not found."

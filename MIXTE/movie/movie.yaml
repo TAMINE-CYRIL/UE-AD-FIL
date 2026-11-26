@@ -1,0 +1,156 @@
+openapi: 3.0.3
+info:
+  title: Movie Service API
+  description: GraphQL API for browsing, adding, rating, and deleting movies (schema in movie.graphql).
+  version: "1.0.0"
+  contact:
+    name: Cyril Tamine, Igor Gallea
+    email: igor.gallea@imt-atlantique.fr
+servers:
+  - url: http://localhost:3200
+    description: Local development server
+
+tags:
+- name: admin
+  description: "Mutations add_movie, update_movie_rate, delete_movie (JWT with admin claim)."
+- name: dev
+  description: "Queries movies, movie_with_id, movie_by_title (no token needed)."
+
+paths:
+  /:
+    get:
+      tags:
+        - dev
+      summary: Service home page
+      description: Returns an HTML welcome message.
+      responses:
+        "200":
+          description: HTML welcome message
+          content:
+            text/html:
+              schema:
+                type: string
+                example: "<h1 style='color:blue'>Welcome to the Movie service!</h1>"
+
+  /graphql:
+    post:
+      tags:
+        - dev
+        - admin
+      summary: Execute a GraphQL query or mutation
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                query:
+                  type: string
+                variables:
+                  type: object
+            examples:
+              movies:
+                value:
+                  query: "{ movies { id title director rating } }"
+              movie_with_id:
+                value:
+                  query: "{ movie_with_id(_id: \"720d006c-3a57-4b6a-b18f-9b713b073f3c\") { title actors { firstname lastname } } }"
+              movie_by_title:
+                value:
+                  query: "{ movie_by_title(title: \"The Good Dinosaur\") { id rating } }"
+              add_movie:
+                value:
+                  query: "mutation { add_movie(_id: \"m1\", title: \"Inception\", director: \"Christopher Nolan\", rating: 8.8) { id } }"
+              update_movie_rate:
+                value:
+                  query: "mutation { update_movie_rate(_id: \"m1\", _rate: 9.0) { id rating } }"
+              delete_movie:
+                value:
+                  query: "mutation { delete_movie(_id: \"m1\") { id } }"
+      responses:
+        "200":
+          description: "Result in `data`. On error, the field is null and `errors[].extensions.code` is BAD_REQUEST, NOT_FOUND, CONFLICT, UNAUTHENTICATED or FORBIDDEN."
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  data:
+                    type: object
+                  errors:
+                    type: array
+                    items:
+                      $ref: "#/components/schemas/Error"
+        "400":
+          description: Invalid GraphQL query
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  errors:
+                    type: array
+                    items:
+                      $ref: "#/components/schemas/Error"
+
+components:
+  schemas:
+    Movie:
+      type: object
+      description: Representation of a movie.
+      properties:
+        id:
+          type: string
+          example: "720d006c-3a57-4b6a-b18f-9b713b073f3c"
+        title:
+          type: string
+          example: "The Good Dinosaur"
+        director:
+          type: string
+          example: "Peter Sohn"
+        rating:
+          type: number
+          example: 7.4
+        actors:
+          type: array
+          items:
+            $ref: "#/components/schemas/Actor"
+      required:
+        - id
+        - title
+        - director
+        - rating
+
+    Actor:
+      type: object
+      properties:
+        id:
+          type: string
+          example: "actor1"
+        firstname:
+          type: string
+          example: "Leonardo"
+        lastname:
+          type: string
+          example: "DiCaprio"
+        birthyear:
+          type: integer
+          example: 1974
+        films:
+          type: array
+          items:
+            type: string
+
+    Error:
+      type: object
+      properties:
+        message:
+          type: string
+          example: "Movie ID not found."
+        extensions:
+          type: object
+          properties:
+            code:
+              type: string
+              example: "NOT_FOUND"

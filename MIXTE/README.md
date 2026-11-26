@@ -1,5 +1,72 @@
 # UE-AD-A1-MIXTE
 
+Version mixte du TP : **Movie** et **Booking** sont des services GraphQL, **Schedule** et **User** des services REST.
+
+## Architecture
+
+| Service | Type | Port | Données | Appelle |
+|---|---|---|---|---|
+| Movie | GraphQL (`POST /graphql`) | 3200 | `movie/data/movies.json`, `actors.json` | — |
+| Booking | GraphQL (`POST /graphql`) | 3201 | `booking/data/bookings.json` | Movie (GraphQL), Schedule (REST) |
+| Schedule | REST | 3202 | `schedule/data/times.json` | — |
+| User | REST | 3203 | MongoDB (`users`) | Booking (GraphQL) |
+
+## Lancement avec Docker Compose
+
+Depuis le dossier `MIXTE` :
+
+```bash
+docker compose up --build
+```
+
+Le fichier `.env` configure les ports exposés, les URL interservices (noms Docker `movie`, `schedule`, `booking`),
+le secret JWT et les identifiants MongoDB.
+
+Pour vérifier les appels interservices après le démarrage (User -> Booking -> Movie) :
+
+```bash
+TOKEN=$(curl -s -X POST http://localhost:3203/login -H "Content-Type: application/json" \
+        -d '{"id": "chris_rivers", "password": "chris123"}' | python -c "import sys, json; print(json.load(sys.stdin)['token'])")
+curl http://localhost:3203/users/chris_rivers/bookings/movies -H "Authorization: Bearer $TOKEN"
+```
+
+Les fichiers JSON sont stockés dans les conteneurs : les modifications effectuées via les API sont perdues si les conteneurs sont recréés.
+
+## Environnement virtuel Python
+
+Depuis le dossier `MIXTE`, sous Linux ou WSL :
+
+```bash
+python3 -m venv .venv
+source .venv/bin/activate
+python -m pip install -r requirements.txt
+```
+
+Pour quitter l'environnement :
+
+```bash
+deactivate
+```
+
+## Documentation des API
+
+Chaque service a sa documentation OpenAPI (à ouvrir par exemple dans https://editor.swagger.io) :
+
+- `movie/movie.yaml` (schéma GraphQL : `movie/movie.graphql`)
+- `booking/booking.yaml` (schéma GraphQL : `booking/booking.graphql`)
+- `schedule/schedule.yaml`
+- `user/user.yaml`
+
+Exemple de requête GraphQL :
+
+```bash
+curl -X POST http://localhost:3200/graphql -H "Content-Type: application/json" \
+     -d '{"query": "{ movies { id title rating } }"}'
+```
+
+Côté GraphQL, une erreur d'un resolver est renvoyée avec le code HTTP 200, le champ à `null`
+et un code dans `errors[].extensions.code` (`BAD_REQUEST`, `NOT_FOUND`, `CONFLICT`, `UNAUTHENTICATED`, `FORBIDDEN`, `SERVICE_UNAVAILABLE`).
+
 ## Authentification
 
 L'authentification utilise la librairie **flask-jwt-extended**.
