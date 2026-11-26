@@ -1,12 +1,17 @@
 import json
 import os
+from pathlib import Path
 
 import requests
 from graphql import GraphQLError
 
+from auth import get_connected_user
+
 MOVIE_URL = os.environ.get('MOVIE_URL', 'http://localhost:3200/graphql')
 SCHEDULE_URL = os.environ.get('SCHEDULE_URL', 'http://localhost:3202')
 TIMEOUT = 5
+
+BOOKINGS_PATH = Path(__file__).resolve().parent / 'data' / 'bookings.json'
 
 MOVIE_QUERY = """
 query($id: String!) {
@@ -24,6 +29,24 @@ def booking_error(message, code):
     """Erreur GraphQL avec un code machine dans 'extensions' (BAD_REQUEST, NOT_FOUND, CONFLICT,
     SERVICE_UNAVAILABLE), pour que les clients n'aient pas à analyser le texte du message."""
     return GraphQLError(message, extensions={'code': code})
+
+
+def check_admin():
+    """Lève une erreur si l'appelant n'est pas connecté (UNAUTHENTICATED) ou n'est pas admin (FORBIDDEN)."""
+    user = get_connected_user()
+    if user is None:
+        raise booking_error('Authentication required.', 'UNAUTHENTICATED')
+    if not user['admin']:
+        raise booking_error('Admin rights required.', 'FORBIDDEN')
+
+
+def check_self_or_admin(userid):
+    """Lève une erreur si l'appelant n'est pas connecté, ou s'il n'est ni `userid` ni admin."""
+    user = get_connected_user()
+    if user is None:
+        raise booking_error('Authentication required.', 'UNAUTHENTICATED')
+    if user['sub'] != userid and not user['admin']:
+        raise booking_error('You can only access your own bookings.', 'FORBIDDEN')
 
 
 def get_movie(movieid):
@@ -50,13 +73,15 @@ def get_scheduled_movies(date):
 
 
 def bookings(_, info):
-    with open('{}/data/bookings.json'.format("."), "r") as file:
+    check_admin()
+    with BOOKINGS_PATH.open(encoding='utf-8') as file:
         bookings = json.load(file)
         return bookings['bookings']
 
 
 def booking_by_user(_, info, userid):
-    with open('{}/data/bookings.json'.format("."), "r") as file:
+    check_self_or_admin(userid)
+    with BOOKINGS_PATH.open(encoding='utf-8') as file:
         bookings = json.load(file)
         for booking in bookings['bookings']:
             if booking['userid'] == userid:
@@ -64,6 +89,7 @@ def booking_by_user(_, info, userid):
 
 
 def add_booking(_, info, userid, date, movieid):
+    check_self_or_admin(userid)
     if not userid.strip():
         raise booking_error('A non-empty userid is required.', 'BAD_REQUEST')
     if get_movie(movieid) is None:
@@ -71,7 +97,7 @@ def add_booking(_, info, userid, date, movieid):
     if movieid not in get_scheduled_movies(date):
         raise booking_error('This movie is not scheduled on this date.', 'BAD_REQUEST')
 
-    with open('{}/data/bookings.json'.format("."), "r") as rfile:
+    with BOOKINGS_PATH.open(encoding='utf-8') as rfile:
         bookings = json.load(rfile)
 
     user_booking = next((b for b in bookings['bookings'] if b['userid'] == userid), None)
@@ -88,18 +114,19 @@ def add_booking(_, info, userid, date, movieid):
         raise booking_error('This booking already exists.', 'CONFLICT')
     date_booking['movies'].append(movieid)
 
-    with open('{}/data/bookings.json'.format("."), "w") as wfile:
+    with BOOKINGS_PATH.open('w', encoding='utf-8') as wfile:
         json.dump(bookings, wfile, indent=2)
     return user_booking
 
 
 def delete_booking(_, info, userid):
-    with open('{}/data/bookings.json'.format("."), "r") as rfile:
+    check_self_or_admin(userid)
+    with BOOKINGS_PATH.open(encoding='utf-8') as rfile:
         bookings = json.load(rfile)
         for booking in bookings['bookings']:
             if booking['userid'] == userid:
                 bookings['bookings'].remove(booking)
-                with open('{}/data/bookings.json'.format("."), "w") as wfile:
+                with BOOKINGS_PATH.open('w', encoding='utf-8') as wfile:
                     json.dump(bookings, wfile, indent=2)
                 return booking
     raise booking_error('No booking found for this user.', 'NOT_FOUND')
@@ -108,7 +135,8 @@ def delete_booking(_, info, userid):
 def delete_booking_movie(_, info, userid, date, movieid):
     """Retire une seule réservation (un film à une date). Les dates vides, puis l'utilisateur sans
     réservation, sont retirés du fichier. Renvoie la réservation mise à jour de l'utilisateur."""
-    with open('{}/data/bookings.json'.format("."), "r") as rfile:
+    check_self_or_admin(userid)
+    with BOOKINGS_PATH.open(encoding='utf-8') as rfile:
         bookings = json.load(rfile)
 
     user_booking = next((b for b in bookings['bookings'] if b['userid'] == userid), None)
@@ -124,7 +152,7 @@ def delete_booking_movie(_, info, userid, date, movieid):
     if not user_booking['dates']:
         bookings['bookings'].remove(user_booking)
 
-    with open('{}/data/bookings.json'.format("."), "w") as wfile:
+    with BOOKINGS_PATH.open('w', encoding='utf-8') as wfile:
         json.dump(bookings, wfile, indent=2)
     return user_booking
 

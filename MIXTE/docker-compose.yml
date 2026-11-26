@@ -4,17 +4,20 @@ services:
       context: .
       dockerfile: movie/Dockerfile
     ports:
-      - "3200:3200"
+      - "${MOVIE_PORT}:3200"
+    environment:
+      - JWT_SECRET=${JWT_SECRET}
 
   booking:
     build:
       context: .
       dockerfile: booking/Dockerfile
     ports:
-      - "3201:3201"
+      - "${BOOKING_PORT}:3201"
     environment:
-      - MOVIE_URL=http://movie:3200/graphql
-      - SCHEDULE_URL=http://schedule:3202
+      - MOVIE_URL=${MOVIE_URL}
+      - SCHEDULE_URL=${SCHEDULE_URL}
+      - JWT_SECRET=${JWT_SECRET}
     depends_on:
       - movie
       - schedule
@@ -24,15 +27,18 @@ services:
       context: .
       dockerfile: schedule/Dockerfile
     ports:
-      - "3202:3202"
+      - "${SCHEDULE_PORT}:3202"
+    environment:
+      - JWT_SECRET=${JWT_SECRET}
 
   user:
     build:
       context: .
       dockerfile: user/Dockerfile
     ports:
-      - "3203:3203"
+      - "${USER_PORT}:3203"
     environment:
-      - BOOKING_URL=http://booking:3201/graphql
+      - BOOKING_URL=${BOOKING_URL}
+      - JWT_SECRET=${JWT_SECRET}
     depends_on:
       - booking

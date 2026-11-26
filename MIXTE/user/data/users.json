@@ -3,37 +3,51 @@
     {
       "id": "chris_rivers",
       "name": "Chris Rivers",
-      "last_active":1360031010
+      "last_active": 1360031010,
+      "password_hash": "scrypt:32768:8:1$OGnWI7DnUy7COeCm$e5c41f57f9dd46936228dc50e9c855a5a2f95fc2613a0b55c33f979706b72fce057012235224a97deb10092aaca49d190ba7b629d5c4034e6b674dc5b8f16040",
+      "admin": false
     },
     {
       "id": "peter_curley",
       "name": "Peter Curley",
-      "last_active": 1360031222
+      "last_active": 1360031222,
+      "password_hash": "scrypt:32768:8:1$c0XSYurEOZa4IfIQ$01d89849ab213a546ec469a761bffe5b889ec51991f3fd1c1f6ff26e6884273091f9751d4a6d2ef82842cdc80395f56188df427b4c395c78639001ce75b8a4f4",
+      "admin": false
     },
     {
       "id": "garret_heaton",
       "name": "Garret Heaton",
-      "last_active": 1360031425
+      "last_active": 1360031425,
+      "password_hash": "scrypt:32768:8:1$75y8o9aBpjJ1PPdG$d6af7e4f00901d0291f94e4fcd002d565853172910dac00eb09c82bfb3a16d5ed56f6252f95cc3339e9e45cc19c9ef1c6e3d85a645a9a59868d06d02f74c2fd1",
+      "admin": false
     },
     {
       "id": "michael_scott",
       "name": "Michael Scott",
-      "last_active": 1360031625
+      "last_active": 1360031625,
+      "password_hash": "scrypt:32768:8:1$McJxfnFS6LxAxccg$05c596a89242eccb22273d4cd13daec8c5b8f09cbd74f754876565d839f656bb2212b8ab58ec556d731a8928eca6cd2979cbe4d9111c5119a61d0ed210980e08",
+      "admin": true
     },
     {
       "id": "jim_halpert",
       "name": "Jim Halpert",
-      "last_active": 1360031325
+      "last_active": 1360031325,
+      "password_hash": "scrypt:32768:8:1$XetGZsMpW6KJsAyL$a61dea5d5529917cb4c738d9c6cfe61b0e3974cc261e15528421dff10f67170417f043c0d799a9bda09165eb9fa137adea407a4f6f5775b001206138691015cb",
+      "admin": false
     },
     {
       "id": "pam_beesly",
       "name": "Pam Beesly",
-      "last_active": 1360031225
+      "last_active": 1360031225,
+      "password_hash": "scrypt:32768:8:1$SsKWc6eXOPveT4JF$fc918ddbcdc80697c911f611c0090467cea3bbd49270a8375c187f2aaa68a7bcc222670440c6e5cc8cb1652f9c28c251f87763d692941198767077fd56b9d441",
+      "admin": false
     },
     {
       "id": "dwight_schrute",
       "name": "Dwight Schrute",
-      "last_active": 1360031202
+      "last_active": 1360031202,
+      "password_hash": "scrypt:32768:8:1$qtf6t2uohUZhqsHa$288928f277bd95de640f4ec4756a34a4e88ab6dbc22f5c170d9b94dfa05c7ca6395265108ebccfc96d2fecca2c6d0acd7ecf47d0fcfec9e7e22f693b7b77e917",
+      "admin": false
     }
   ]
 }

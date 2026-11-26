@@ -1,14 +1,37 @@
 import json
+from pathlib import Path
+
+from graphql import GraphQLError
+
+from auth import get_connected_user
+
+MOVIES_PATH = Path(__file__).resolve().parent / 'data' / 'movies.json'
+ACTORS_PATH = Path(__file__).resolve().parent / 'data' / 'actors.json'
+
+
+def movie_error(message, code):
+    """Erreur GraphQL avec un code machine dans 'extensions' (BAD_REQUEST, NOT_FOUND, CONFLICT,
+    UNAUTHENTICATED, FORBIDDEN), pour que les clients n'aient pas à analyser le texte du message."""
+    return GraphQLError(message, extensions={'code': code})
+
+
+def check_admin():
+    """Lève une erreur si l'appelant n'est pas connecté (UNAUTHENTICATED) ou n'est pas admin (FORBIDDEN)."""
+    user = get_connected_user()
+    if user is None:
+        raise movie_error('Authentication required.', 'UNAUTHENTICATED')
+    if not user['admin']:
+        raise movie_error('Admin rights required.', 'FORBIDDEN')
 
 
 def movies(_, info):
-    with open('{}/data/movies.json'.format("."), "r") as file:
+    with MOVIES_PATH.open(encoding='utf-8') as file:
         movies = json.load(file)
         return movies['movies']
 
 
 def movie_with_id(_, info, _id):
-    with open('{}/data/movies.json'.format("."), "r") as file:
+    with MOVIES_PATH.open(encoding='utf-8') as file:
         movies = json.load(file)
         for movie in movies['movies']:
             if movie['id'] == _id:
@@ -17,9 +40,9 @@ def movie_with_id(_, info, _id):
 
 def movie_by_title(_, info, title):
     if not title.strip():
-        raise ValueError('A non-empty title is required.')
+        raise movie_error('A non-empty title is required.', 'BAD_REQUEST')
 
-    with open('{}/data/movies.json'.format("."), "r") as file:
+    with MOVIES_PATH.open(encoding='utf-8') as file:
         movies = json.load(file)
         for movie in movies['movies']:
             if movie['title'] == title:
@@ -27,16 +50,17 @@ def movie_by_title(_, info, title):
 
 
 def add_movie(_, info, _id, title, director, rating):
+    check_admin()
     if not title.strip():
-        raise ValueError('A non-empty title is required.')
+        raise movie_error('A non-empty title is required.', 'BAD_REQUEST')
     if rating < 0 or rating > 10:
-        raise ValueError('Movie rating must be a number between 0 and 10.')
+        raise movie_error('Movie rating must be a number between 0 and 10.', 'BAD_REQUEST')
 
-    with open('{}/data/movies.json'.format("."), "r") as rfile:
+    with MOVIES_PATH.open(encoding='utf-8') as rfile:
         movies = json.load(rfile)
         for movie in movies['movies']:
             if movie['id'] == _id:
-                raise ValueError('Movie ID already exists.')
+                raise movie_error('Movie ID already exists.', 'CONFLICT')
 
         newmovie = {
             'id': _id,
@@ -46,40 +70,42 @@ def add_movie(_, info, _id, title, director, rating):
         }
         movies['movies'].append(newmovie)
 
-    with open('{}/data/movies.json'.format("."), "w") as wfile:
+    with MOVIES_PATH.open('w', encoding='utf-8') as wfile:
         json.dump(movies, wfile, indent=2)
     return newmovie
 
 
 def resolve_actors_in_movie(movie, info):
-    with open('{}/data/actors.json'.format("."), "r") as file:
+    with ACTORS_PATH.open(encoding='utf-8') as file:
         actors = json.load(file)
         result = [actor for actor in actors['actors'] if movie['id'] in actor['films']]
         return result
 
 
 def update_movie_rate(_, info, _id, _rate):
+    check_admin()
     if _rate < 0 or _rate > 10:
-        raise ValueError('Movie rating must be a number between 0 and 10.')
+        raise movie_error('Movie rating must be a number between 0 and 10.', 'BAD_REQUEST')
 
-    with open('{}/data/movies.json'.format("."), "r") as rfile:
+    with MOVIES_PATH.open(encoding='utf-8') as rfile:
         movies = json.load(rfile)
         for movie in movies['movies']:
             if movie['id'] == _id:
                 movie['rating'] = _rate
-                with open('{}/data/movies.json'.format("."), "w") as wfile:
+                with MOVIES_PATH.open('w', encoding='utf-8') as wfile:
                     json.dump(movies, wfile, indent=2)
                 return movie
-    raise ValueError('Movie ID not found.')
+    raise movie_error('Movie ID not found.', 'NOT_FOUND')
 
 
 def delete_movie(_, info, _id):
-    with open('{}/data/movies.json'.format("."), "r") as rfile:
+    check_admin()
+    with MOVIES_PATH.open(encoding='utf-8') as rfile:
         movies = json.load(rfile)
         for movie in movies['movies']:
             if movie['id'] == _id:
                 movies['movies'].remove(movie)
-                with open('{}/data/movies.json'.format("."), "w") as wfile:
+                with MOVIES_PATH.open('w', encoding='utf-8') as wfile:
                     json.dump(movies, wfile, indent=2)
                 return movie
-    raise ValueError('Movie ID not found.')
+    raise movie_error('Movie ID not found.', 'NOT_FOUND')

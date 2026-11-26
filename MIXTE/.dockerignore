@@ -9,3 +9,5 @@ README.md
 LICENSE
 docker-compose.yml
 **/Dockerfile
+
+.env
