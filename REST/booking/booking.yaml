@@ -3,6 +3,9 @@ info:
   title: Booking Service API
   description: API for managing user bookings and retrieving details of booked movies.
   version: "1.0.0"
+  contact:
+    name: Cyril Tamine, Igor Gallea
+    email: cyril.tamine@imt-atlantique.fr
 servers:
   - url: http://localhost:3201
     description: Local development server
