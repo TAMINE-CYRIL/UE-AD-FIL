@@ -24,7 +24,7 @@ Le token contient l'identité de l'utilisateur (`sub`) et un claim supplémentai
 Quand User appelle Booking, il retransmet le token reçu (en-tête ou cookie) dans l'en-tête `Authorization`.
 
 Les 4 services vérifient le token avec le même secret (`JWT_SECRET`, défini dans le fichier `.env`, lu automatiquement par `docker compose`).
-Les mots de passe sont stockés **hachés** (werkzeug, scrypt) dans `user/data/users.json`, jamais en clair.
+Les mots de passe sont stockés **hachés** (werkzeug, scrypt) dans la base MongoDB, jamais en clair.
 
 ### Comptes de test
 
@@ -51,3 +51,20 @@ Codes renvoyés par les routes REST (réponses par défaut de flask-jwt-extended
 **401** si le token est absent ou expiré (ou si le jeton CSRF manque), **422** si le token est mal formé ou falsifié,
 **403** si les droits sont insuffisants.
 Côté GraphQL, les erreurs portent `extensions.code` = `UNAUTHENTICATED` ou `FORBIDDEN`.
+
+## Base de données MongoDB (service User)
+
+Les utilisateurs sont stockés dans **MongoDB** (librairie `pymongo`), et non plus dans un fichier JSON.
+`docker compose up --build` démarre aussi deux conteneurs :
+
+| Conteneur | Adresse | Rôle |
+|---|---|---|
+| `mongo` | `localhost:27017` (utilisateur `root`, mot de passe `example`) | la base |
+| `mongo-express` | http://localhost:8081 | interface web pour consulter la base |
+
+- Base `users`, collection `users`.
+- Au premier démarrage, si la collection est vide, le service User y insère le contenu de
+  `user/data/users.json` (`insert_many`). Ce fichier n'est ensuite plus modifié.
+- Les réponses qui renvoient des utilisateurs sont sérialisées avec `bson.json_util.dumps` :
+  elles contiennent le champ Mongo `_id`, au format `{"$oid": "..."}`.
+- Hors Docker, le service se connecte à `mongodb://root:example@localhost:27017/` (variable `MONGO_URL`).
