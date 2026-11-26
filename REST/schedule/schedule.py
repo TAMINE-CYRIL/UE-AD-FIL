@@ -1,4 +1,5 @@
 import json
+import os
 import requests
 from flask import Flask, jsonify, make_response, request
 
@@ -6,6 +7,7 @@ app = Flask(__name__)
 
 PORT = 3202
 HOST = '0.0.0.0'
+MOVIE_URL = os.environ.get("MOVIE_URL", "http://localhost:3200").rstrip("/")
 
 with open('{}/databases/times.json'.format("."), "r") as jsf:
    schedule = json.load(jsf)["schedule"]
@@ -71,7 +73,7 @@ def get_schedule_details(date):
     for movieid in showtime["movies"]:
         try:
             response = requests.get(
-                f"http://localhost:3200/movies/{movieid}", timeout=5
+                f"{MOVIE_URL}/movies/{movieid}", timeout=5
             )
         except requests.RequestException:
             return jsonify({"error": "Movie service unavailable."}), 502

@@ -1,5 +1,6 @@
 
 import json
+import os
 
 import requests
 from flask import Flask, jsonify, request
@@ -8,6 +9,8 @@ app = Flask(__name__)
 
 PORT = 3201
 HOST = "0.0.0.0"
+MOVIE_URL = os.environ.get("MOVIE_URL", "http://localhost:3200").rstrip("/")
+SCHEDULE_URL = os.environ.get("SCHEDULE_URL", "http://localhost:3202").rstrip("/")
 
 with open('{}/databases/bookings.json'.format("."), "r") as jsf:
     bookings = json.load(jsf)["bookings"]
@@ -39,7 +42,7 @@ def get_service(url):
 
 def schedule_error(date, movieid):
     """Retourne une réponse d'erreur si le film ne peut pas être réservé."""
-    response = get_service(f"http://localhost:3202/schedule/{date}")
+    response = get_service(f"{SCHEDULE_URL}/schedule/{date}")
     if response is None:
         return jsonify({"error": "Schedule service unavailable."}), 502
     if response.status_code == 404:
@@ -177,7 +180,7 @@ def get_booking_details(userid):
         movies_details = []
 
         for movieid in entry["movies"]:
-            response = get_service(f"{"http://localhost:3200"}/movies/{movieid}")
+            response = get_service(f"{MOVIE_URL}/movies/{movieid}")
 
             if response is None:
                 return jsonify({
