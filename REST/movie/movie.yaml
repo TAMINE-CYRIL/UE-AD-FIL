@@ -83,7 +83,7 @@ paths:
             schema:
               $ref: "#/components/schemas/Movie"
       responses:
-        "200":
+        "201":
           description: Movie added successfully
           content:
             application/json:

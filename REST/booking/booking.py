@@ -9,9 +9,6 @@ app = Flask(__name__)
 PORT = 3201
 HOST = "0.0.0.0"
 
-SCHEDULE_URL = "http://localhost:3202"
-MOVIE_URL = "http://localhost:3200"
-
 with open('{}/databases/bookings.json'.format("."), "r") as jsf:
     bookings = json.load(jsf)["bookings"]
 
@@ -40,6 +37,28 @@ def get_service(url):
         return None
 
 
+def schedule_error(date, movieid):
+    """Retourne une réponse d'erreur si le film ne peut pas être réservé."""
+    response = get_service(f"http://localhost:3202/schedule/{date}")
+    if response is None:
+        return jsonify({"error": "Schedule service unavailable."}), 502
+    if response.status_code == 404:
+        return jsonify({"error": "Schedule date not found."}), 404
+    if response.status_code != 200:
+        return jsonify({"error": "Could not retrieve schedule."}), 502
+
+    try:
+        showtime = response.json()
+    except ValueError:
+        return jsonify({"error": "Invalid schedule response."}), 502
+
+    if not isinstance(showtime, dict) or not isinstance(showtime.get("movies"), list):
+        return jsonify({"error": "Invalid schedule response."}), 502
+    if movieid not in showtime["movies"]:
+        return jsonify({"error": "Movie is not scheduled for this date."}), 404
+    return None
+
+
 @app.route("/", methods=["GET"])
 def home():
    return "<h1 style='color:blue'>Welcome to the Booking service!</h1>"
@@ -61,7 +80,7 @@ def add_booking(userid):
     if not request.is_json:
         return jsonify({"error": "JSON required."}), 415
 
-    req = request.get_json(silent=True)
+    req = request.get_json()
 
     if not isinstance(req, dict):
         return jsonify({"error": "Invalid JSON."}), 400
@@ -72,44 +91,32 @@ def add_booking(userid):
     if not isinstance(date, str) or not isinstance(movieid, str) or not date or not movieid:
         return jsonify({"error": "Date and movieid required."}), 400
 
-    for booking in bookings:
-        if booking["userid"] == userid:
+    error = schedule_error(date, movieid)
+    if error is not None:
+        return error
 
-            for entry in booking["dates"]:
-                if entry["date"] == date:
+    booking = find_user(userid)
+    if booking is None:
+        booking = {"userid": userid, "dates": []}
+        bookings.append(booking)
 
-                    if movieid in entry["movies"]:
-                        return jsonify({
-                            "error": "Movie already booked."
-                        }), 409
+    booking_date = None
+    for entry in booking["dates"]:
+        if entry["date"] == date:
+            booking_date = entry
+            break
 
-                    entry["movies"].append(movieid)
-                    write()
+    if booking_date is None:
+        booking_date = {"date": date, "movies": []}
+        booking["dates"].append(booking_date)
 
-                    return jsonify({"message": "Booking added."}), 201
+    if movieid in booking_date["movies"]:
+        return jsonify({"error": "Movie already booked."}), 409
 
-            booking["dates"].append({
-                "date": date,
-                "movies": [movieid]
-            })
-
-            write()
-            return jsonify({"message": "Booking added."}), 201
-
-    new_booking = {
-        "userid": userid,
-        "dates": [
-            {
-                "date": date,
-                "movies": [movieid]
-            }
-        ]
-    }
-
-    bookings.append(new_booking)
+    booking_date["movies"].append(movieid)
     write()
-
     return jsonify({"message": "Booking added."}), 201
+
 
 @app.route("/bookings/<userid>/<date>/<movieid>", methods=["DELETE"])
 def delete_booking(userid, date, movieid):
@@ -170,7 +177,7 @@ def get_booking_details(userid):
         movies_details = []
 
         for movieid in entry["movies"]:
-            response = get_service(f"{MOVIE_URL}/movies/{movieid}")
+            response = get_service(f"{"http://localhost:3200"}/movies/{movieid}")
 
             if response is None:
                 return jsonify({

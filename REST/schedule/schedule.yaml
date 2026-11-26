@@ -153,6 +153,44 @@ paths:
               example:
                 error: "Schedule not found."
 
+  /schedule/{date}/details:
+    get:
+      tags:
+        - dev
+      summary: Retrieve a schedule with movie details
+      description: Fetches the details of each scheduled movie from the Movie service.
+      parameters:
+        - name: date
+          in: path
+          required: true
+          description: Date identifier of the schedule, typically written as YYYYMMDD.
+          schema:
+            type: string
+          example: "20151201"
+      responses:
+        "200":
+          description: Schedule with full movie details in schedule order
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/DetailedSchedule"
+        "404":
+          description: Date not found
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+              example:
+                error: "Date not found."
+        "502":
+          description: Movie is unavailable or a scheduled movie record could not be retrieved
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+              example:
+                error: "Could not retrieve movie details."
+
 components:
   schemas:
     Schedule:
@@ -174,6 +212,20 @@ components:
             pattern: '\S'
           example:
             - "267eedb8-0f5d-42d5-8f43-72426b9fb3e6"
+    DetailedSchedule:
+      type: object
+      required:
+        - date
+        - movies
+      properties:
+        date:
+          type: string
+          example: "20151201"
+        movies:
+          type: array
+          description: Full movie records for the date.
+          items:
+            $ref: "../movie/movie.yaml#/components/schemas/Movie"
     Message:
       type: object
       required:

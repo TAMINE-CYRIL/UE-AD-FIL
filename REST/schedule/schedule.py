@@ -1,6 +1,6 @@
-from flask import Flask, render_template, request, jsonify, make_response
 import json
-from werkzeug.exceptions import NotFound
+import requests
+from flask import Flask, jsonify, make_response, request
 
 app = Flask(__name__)
 
@@ -33,6 +33,14 @@ def schedule_validation_error(showtime, date):
     return None
 
 
+def find_schedule(date):
+    """Recherche la programmation d'une date."""
+    for showtime in schedule:
+        if str(showtime["date"]) == date:
+            return showtime
+    return None
+
+
 @app.route("/", methods=['GET'])
 def home():
    """ Renvoie la page d'accueil de l'API schedule. """
@@ -45,12 +53,41 @@ def get_schedule():
 
 @app.route("/schedule/<date>", methods=['GET'])
 def get_schedule_bydate(date):
-   """Renvoie un planning basé sur sa date. Renvoie 404 si la date n'est pas trouvé, sinon 200"""
-   for showtime in schedule:
-        if str(showtime["date"]) == date:
-            return jsonify(showtime), 200
+    """Renvoie la programmation de la date, ou 404 si elle est absente."""
+    showtime = find_schedule(date)
+    if showtime is None:
+        return jsonify({"error": "Date not found."}), 404
+    return jsonify(showtime), 200
 
-   return jsonify({"error": "Date not found."}), 404
+
+@app.route("/schedule/<date>/details", methods=['GET'])
+def get_schedule_details(date):
+    """Renvoie la programmation avec les fiches récupérées auprès de Movie."""
+    showtime = find_schedule(date)
+    if showtime is None:
+        return jsonify({"error": "Date not found."}), 404
+
+    movies = []
+    for movieid in showtime["movies"]:
+        try:
+            response = requests.get(
+                f"http://localhost:3200/movies/{movieid}", timeout=5
+            )
+        except requests.RequestException:
+            return jsonify({"error": "Movie service unavailable."}), 502
+
+        if response.status_code != 200:
+            return jsonify({"error": "Could not retrieve movie details."}), 502
+
+        try:
+            movie = response.json()
+        except ValueError:
+            return jsonify({"error": "Invalid movie response."}), 502
+        if not isinstance(movie, dict) or movie.get("id") != movieid:
+            return jsonify({"error": "Invalid movie response."}), 502
+        movies.append(movie)
+
+    return jsonify({"date": showtime["date"], "movies": movies}), 200
 
 @app.route("/schedule/<date>", methods=["POST"])
 def create_schedule(date):
