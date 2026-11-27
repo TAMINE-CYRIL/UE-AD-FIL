@@ -112,12 +112,22 @@ def add_booking(_, info, userid, date, movieid):
     with BOOKINGS_PATH.open(encoding='utf-8') as rfile:
         bookings = json.load(rfile)
 
-    user_booking = next((b for b in bookings['bookings'] if b['userid'] == userid), None)
+    # Recherche des réservations de l'utilisateur (création si absentes)
+    user_booking = None
+    for booking in bookings['bookings']:
+        if booking['userid'] == userid:
+            user_booking = booking
+            break
     if user_booking is None:
         user_booking = {'userid': userid, 'dates': []}
         bookings['bookings'].append(user_booking)
 
-    date_booking = next((d for d in user_booking['dates'] if d['date'] == date), None)
+    # Recherche de la date dans ses réservations (création si absente)
+    date_booking = None
+    for day in user_booking['dates']:
+        if day['date'] == date:
+            date_booking = day
+            break
     if date_booking is None:
         date_booking = {'date': date, 'movies': []}
         user_booking['dates'].append(date_booking)
@@ -151,10 +161,20 @@ def delete_booking_movie(_, info, userid, date, movieid):
     with BOOKINGS_PATH.open(encoding='utf-8') as rfile:
         bookings = json.load(rfile)
 
-    user_booking = next((b for b in bookings['bookings'] if b['userid'] == userid), None)
+    # Recherche des réservations de l'utilisateur
+    user_booking = None
+    for booking in bookings['bookings']:
+        if booking['userid'] == userid:
+            user_booking = booking
+            break
+
+    # Recherche de la date dans ses réservations
     date_booking = None
     if user_booking is not None:
-        date_booking = next((d for d in user_booking['dates'] if d['date'] == date), None)
+        for day in user_booking['dates']:
+            if day['date'] == date:
+                date_booking = day
+                break
     if date_booking is None or movieid not in date_booking['movies']:
         raise booking_error('This booking does not exist.', 'NOT_FOUND')
 
