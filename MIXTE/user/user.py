@@ -9,7 +9,6 @@ from datetime import timedelta
 from pathlib import Path
 
 from pymongo import MongoClient
-from bson.json_util import dumps
 from werkzeug.security import check_password_hash, generate_password_hash
 
 app = Flask(__name__)
@@ -20,6 +19,8 @@ app.config["JWT_SECRET_KEY"] = os.environ.get('JWT_SECRET', 'dev-secret-change-m
 app.config["JWT_TOKEN_LOCATION"] = ["headers", "cookies"]
 # Si à True, le cookie n'est envoyé qu'en HTTPS (compliqué en développement local)
 app.config["JWT_COOKIE_SECURE"] = False
+# Si à True, les requêtes POST/PUT/DELETE avec le cookie seul doivent aussi envoyer l'en-tête X-CSRF-TOKEN
+app.config["JWT_COOKIE_CSRF_PROTECT"] = False
 app.config["JWT_ACCESS_TOKEN_EXPIRES"] = timedelta(hours=1)
 jwt = JWTManager(app)
 
@@ -117,9 +118,11 @@ def find_user(userid):
 
 
 def public_user(user):
-    """Copie de l'utilisateur sans le hash du mot de passe (à utiliser pour toute réponse)."""
+    """Copie de l'utilisateur sans le hash du mot de passe ni l'_id Mongo (à utiliser pour toute réponse).
+    L'_id Mongo est retiré car jsonify ne sait pas le convertir en JSON."""
     result = dict(user)
     result.pop('password_hash', None)
+    result.pop('_id', None)
     return result
 
 
@@ -190,7 +193,9 @@ def login():
     """Connexion {id, password} : renvoie un JWT dans la réponse ET dans un cookie (200),
     ou 401 si les identifiants sont invalides."""
     # 1. Récupérer dans la requête l'utilisateur qui souhaite se connecter
-    req = request.get_json(silent=True) or {}
+    req = request.get_json(silent=True)
+    if not isinstance(req, dict):
+        return make_response(jsonify({"error": "The body must be a JSON object."}), 400)
     # 2. Valider que l'utilisateur existe bien (et que son mot de passe est correct)
     user = find_user(req.get('id'))
     if user is None or not check_password_hash(user.get('password_hash', ''), str(req.get('password', ''))):
@@ -214,7 +219,7 @@ def get_users():
     result = []
     for user in list(collection.find()):
         result.append(public_user(user))
-    return make_response(dumps(result), 200)
+    return make_response(jsonify(result), 200)
 
 
 @app.route("/users/<userid>", methods=['GET'])
@@ -227,7 +232,7 @@ def get_users_byid(userid):
     user = find_user(userid)
     if user is None:
         return make_response(jsonify({"error": "User ID not found."}), 404)
-    return make_response(dumps(public_user(user)), 200)
+    return make_response(jsonify(public_user(user)), 200)
 
 
 @app.route("/users/<userid>", methods=["POST"])
@@ -238,6 +243,8 @@ def add_user(userid):
     if not request.is_json:
         return make_response(jsonify({'error': 'Content-Type must be application/json.'}), 415)
     req = request.get_json()
+    if not isinstance(req, dict):
+        return make_response(jsonify({"error": "The body must be a JSON object."}), 400)
     if str(req.get("id")) != str(userid):
         return make_response(jsonify({"error": "The id in the body must match the id in the URL."}), 400)
     if not req.get("password"):
@@ -269,7 +276,9 @@ def update_user_last_active(userid):
         return error
     if not request.is_json:
         return make_response(jsonify({'error': 'Content-Type must be application/json.'}), 415)
-    req = request.get_json(silent=True) or {}
+    req = request.get_json(silent=True)
+    if not isinstance(req, dict):
+        return make_response(jsonify({"error": "The body must be a JSON object."}), 400)
     timestamp = req.get('last_active')
     # type(...) is int refuse aussi True/False, qui sont des int en Python
     if type(timestamp) is not int:
@@ -279,7 +288,7 @@ def update_user_last_active(userid):
     myquery = {"id": userid}
     newvalues = {"$set": {"last_active": timestamp}}
     collection.update_one(myquery, newvalues)
-    return make_response(dumps(public_user(find_user(userid))), 200)
+    return make_response(jsonify(public_user(find_user(userid))), 200)
 
 
 @app.route("/users/<userid>", methods=['DELETE'])
@@ -293,7 +302,7 @@ def del_user(userid):
     if user is None:
         return make_response(jsonify({"error": "User ID not found."}), 404)
     collection.delete_one({"id": userid})
-    return make_response(dumps(public_user(user)), 200)
+    return make_response(jsonify(public_user(user)), 200)
 
 
 @app.route("/users/<userid>/bookings", methods=['GET'])
@@ -341,7 +350,9 @@ def add_user_booking(userid):
         return error
     if find_user(userid) is None:
         return make_response(jsonify({"error": "User ID not found."}), 404)
-    req = request.get_json(silent=True) or {}
+    req = request.get_json(silent=True)
+    if not isinstance(req, dict):
+        return make_response(jsonify({"error": "The body must be a JSON object."}), 400)
     if not req.get('date') or not req.get('movieid'):
         return make_response(jsonify({"error": "Fields 'date' and 'movieid' are required."}), 400)
     data, error, status = graphql_query(BOOKING_URL, ADD_BOOKING_MUTATION,

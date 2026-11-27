@@ -93,7 +93,7 @@ paths:
                     type: string
                     example: "Schedule added."
         "400":
-          description: Body date different from URL date
+          description: Invalid body (not an object, date different from URL date, or 'movies' not a list)
           content:
             application/json:
               schema:

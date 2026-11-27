@@ -61,6 +61,12 @@ paths:
                 properties:
                   token:
                     type: string
+        "400":
+          description: Body is not a JSON object
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
         "401":
           description: Invalid credentials
           content:

@@ -11,6 +11,7 @@ app = Flask(__name__)
 app.config["JWT_SECRET_KEY"] = os.environ.get('JWT_SECRET', 'dev-secret-change-me')
 app.config["JWT_TOKEN_LOCATION"] = ["headers", "cookies"]
 app.config["JWT_COOKIE_SECURE"] = False
+app.config["JWT_COOKIE_CSRF_PROTECT"] = False
 app.config["JWT_ACCESS_TOKEN_EXPIRES"] = timedelta(hours=1)
 jwt = JWTManager(app)
 
@@ -65,21 +66,27 @@ def get_schedule_bydate(date):
 @app.route("/schedule/<date>", methods=["POST"])
 @jwt_required()
 def create_schedule(date):
-    """Crée un planning (admin, sinon 401/403). Renvoie 415 si le corps n'est pas du JSON, 400 si la date du corps
-    ne correspond pas à celle de l'URL, 409 si la date existe déjà, sinon 200."""
+    """Crée un planning (admin, sinon 401/403). Renvoie 415 si le corps n'est pas du JSON, 400 si le corps
+    est invalide ou si sa date ne correspond pas à celle de l'URL, 409 si la date existe déjà, sinon 200."""
     error = check_admin()
     if error:
         return error
     if not request.is_json:
         return make_response(jsonify({"error": "Content-Type must be application/json."}), 415)
     req = request.get_json()
+    # Le corps doit être un objet JSON {...} (et pas une liste, un nombre...)
+    if not isinstance(req, dict):
+        return make_response(jsonify({"error": "The body must be a JSON object."}), 400)
     if str(req.get("date")) != str(date):
         return make_response(jsonify({"error": "The date in the body must match the date in the URL."}), 400)
+    if not isinstance(req.get("movies"), list):
+        return make_response(jsonify({"error": "Field 'movies' must be a list of movie IDs."}), 400)
     for showtime in schedule:
         if str(showtime["date"]) == str(date):
             return make_response(jsonify({"error": "This date already exists."}), 409)
 
-    schedule.append(req)
+    # On ne garde que les champs attendus
+    schedule.append({"date": str(date), "movies": req["movies"]})
     write(schedule)
     return make_response(jsonify({"message": "Schedule added."}), 200)
 
